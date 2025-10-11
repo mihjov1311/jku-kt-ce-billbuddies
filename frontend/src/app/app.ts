@@ -1,12 +1,29 @@
 import { Component, signal } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { NgIf, NgForOf } from '@angular/common';
+import { supabase } from './supabaseClient';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet],
+  standalone: true,
+  imports: [NgIf, NgForOf], // Nur die Direktiven, die wirklich genutzt werden
   templateUrl: './app.html',
-  styleUrl: './app.css'
+  styleUrls: ['./app.css']
 })
 export class App {
-  protected readonly title = signal('frontend');
+  protected readonly title = signal('Supabase');
+  users: any[] = [];
+
+  constructor() {
+    this.loadUsers();
+  }
+
+  async loadUsers() {
+    const { data, error } = await supabase.from('users').select('*');
+    if (error) {
+      console.error('Supabase error:', error.message);
+    } else {
+      this.users = data ?? [];
+      console.log('Users:', this.users);
+    }
+  }
 }
