@@ -1,6 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { NgIf, NgForOf } from '@angular/common';
-import { supabase } from './supabaseClient';
+import { supabase } from './core/services/supabase/supabaseClient';
 
 @Component({
   selector: 'app-root',
