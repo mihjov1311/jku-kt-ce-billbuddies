@@ -10,7 +10,7 @@ import { supabase } from './core/services/supabase/supabaseClient';
   styleUrls: ['./app.css']
 })
 export class App {
-  protected readonly title = signal('Supabase');
+  protected readonly title = signal('Supabase:');
   users: any[] = [];
 
   constructor() {
