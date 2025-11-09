@@ -42,9 +42,30 @@ export function AuthPage({ onLogin }: AuthPageProps) {
     if (error) {
       setError(error.message);
     } else if (data.user) {
-      // Benutzername aus Metadaten oder E-Mail als Fallback holen
-      const name = data.user.user_metadata?.full_name || data.user.email || "";
-      onLogin(name);
+      // =================================================================
+      // HIER IST DIE NEUE, VERBESSERTE LOGIK ZUR NAMENSFINDUNG
+      // =================================================================
+      const meta = data.user.user_metadata;
+      let displayName = "";
+
+      // 1. Priorität: Versuche, den Namen aus Teilen zu bauen
+      if (meta?.first_name && meta?.last_name) {
+        displayName = `${meta.first_name} ${meta.last_name}`; // z.B. "Jovana Mihajlovic"
+      }
+      // 2. Priorität: Suche nach einem kompletten 'full_name'
+      else if (meta?.full_name) {
+        displayName = meta.full_name;
+      }
+      // 3. Priorität: Nimm den 'username'
+      else if (meta?.username) {
+        displayName = meta.username; // z.B. "mijo13"
+      }
+      // 4. Fallback: Nimm die E-Mail
+      else {
+        displayName = data.user.email || "";
+      }
+
+      onLogin(displayName);
     }
   };
 
