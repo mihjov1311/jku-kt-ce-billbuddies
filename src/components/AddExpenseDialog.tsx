@@ -98,7 +98,7 @@ export function AddExpenseDialog({ participants, onAddExpense }: AddExpenseDialo
               <SelectTrigger>
                 <SelectValue placeholder="Kategorie auswählen" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-lg rounded-md border border-gray-200 dark:border-gray-700">
                 <SelectItem value="Essen & Trinken">🍽️ Essen & Trinken</SelectItem>
                 <SelectItem value="Transport">🚗 Transport</SelectItem>
                 <SelectItem value="Unterkunft">🏠 Unterkunft</SelectItem>
@@ -117,7 +117,7 @@ export function AddExpenseDialog({ participants, onAddExpense }: AddExpenseDialo
               <SelectTrigger>
                 <SelectValue placeholder="Person auswählen" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-lg rounded-md border border-gray-200 dark:border-gray-700">
                 {participants.map((participant) => (
                   <SelectItem key={participant} value={participant}>
                     {participant}
