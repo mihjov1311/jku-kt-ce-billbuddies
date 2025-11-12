@@ -3,7 +3,7 @@
  * APP.TSX - HAUPTKOMPONENTE DER BILLBUDDIES-ANWENDUNG
  * =============================================================================
  *
- * Dies ist die zentrale Komponente, die die gesamte App steuert.
+ * Dies ist die zentrale Komponente, die die gesamte App install @supabase/supabase-jsp steuert.
  *
  * APP-STRUKTUR:
  * 1. Nicht angemeldet → AuthPage (Login/Registrierung)
