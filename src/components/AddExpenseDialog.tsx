@@ -4,7 +4,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { Plus } from "lucide-react";
+import { Plus, Users } from "lucide-react";
 
 interface AddExpenseDialogProps {
   participants: string[];
@@ -50,36 +50,45 @@ export function AddExpenseDialog({ participants, onAddExpense }: AddExpenseDialo
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="gap-2 shadow-md hover:shadow-lg transition-shadow" size="lg">
-          <Plus className="h-5 w-5" />
-          Ausgabe hinzufügen
+        <Button className="gap-2 rounded-full bg-teal-700 hover:bg-teal-700 text-white
+                    rounded-full shadow-md
+                                                                                  hover:shadow-lg
+                                                                                  transition-shadow">
+          <Plus className="h-4 w-4" />
+          <span className="text-sm">Ausgabe hinzufügen</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader className="pb-4 border-b">
-          <DialogTitle className="flex items-center gap-2 text-xl">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-teal-600 flex items-center justify-center text-white">
-              <Plus className="h-5 w-5" />
-            </div>
+
+
+      <DialogContent className="sm:max-w-[500px] bg-slate-50 rounded-3xl">
+        <DialogHeader className="pb-4 border-b border-slate-200">
+          <DialogTitle className="flex items-center gap-2 text-lg font-semibold">
+            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-emerald-600 text-white">
+              <Plus className="h-4 w-4" />
+            </span>
             Neue Ausgabe
           </DialogTitle>
-          <DialogDescription className="text-base">
-            Fügen Sie eine neue Ausgabe hinzu. Die Kosten werden automatisch gleichmäßig auf alle Teilnehmer aufgeteilt.
+          <DialogDescription className="text-sm text-slate-600 mt-1">
+            Fügen Sie eine neue Ausgabe hinzu. Die Kosten werden automatisch
+            gleichmäßig auf alle Teilnehmer aufgeteilt.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
+
+        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+          <div className="space-y-1.5">
             <Label htmlFor="description">Beschreibung</Label>
             <Input
               id="description"
               placeholder="z.B. Abendessen"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+              className="bg-white rounded-xl"
               required
+              className="border border-slate-200 focus:border-emerald-400 focus:ring-emerald-300 rounded-xl shadow-sm"
             />
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <Label htmlFor="amount">Betrag (€)</Label>
             <Input
               id="amount"
@@ -88,18 +97,20 @@ export function AddExpenseDialog({ participants, onAddExpense }: AddExpenseDialo
               placeholder="0.00"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
+              className="bg-white rounded-xl"
               required
+              className="border border-slate-200 focus:border-emerald-400 focus:ring-emerald-300 rounded-xl shadow-sm"
             />
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <Label htmlFor="category">Kategorie (optional)</Label>
             <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger>
+              <SelectTrigger className="border border-slate-200 focus:border-emerald-400 focus:ring-emerald-300 rounded-xl shadow-sm">
                 <SelectValue placeholder="Kategorie auswählen" />
               </SelectTrigger>
-              <SelectContent className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-lg rounded-md border border-gray-200 dark:border-gray-700">
-                <SelectItem value="Essen & Trinken">🍽️ Essen & Trinken</SelectItem>
+              <SelectContent className="bg-white border border-slate-200 shadow-lg rounded-xl">
+                <SelectItem value="Essen & Trinken">🍽️ Essen &amp; Trinken</SelectItem>
                 <SelectItem value="Transport">🚗 Transport</SelectItem>
                 <SelectItem value="Unterkunft">🏠 Unterkunft</SelectItem>
                 <SelectItem value="Einkaufen">🛒 Einkaufen</SelectItem>
@@ -111,13 +122,13 @@ export function AddExpenseDialog({ participants, onAddExpense }: AddExpenseDialo
             </Select>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <Label htmlFor="paidBy">Bezahlt von</Label>
-            <Select value={paidBy} onValueChange={setPaidBy} required>
-              <SelectTrigger>
+            <Select value={paidBy} onValueChange={setPaidBy}>
+              <SelectTrigger className="border border-slate-200 focus:border-emerald-400 focus:ring-emerald-300 rounded-xl shadow-sm">
                 <SelectValue placeholder="Person auswählen" />
               </SelectTrigger>
-              <SelectContent className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-lg rounded-md border border-gray-200 dark:border-gray-700">
+              <SelectContent className="bg-white border border-slate-200 shadow-lg rounded-xl">
                 {participants.map((participant) => (
                   <SelectItem key={participant} value={participant}>
                     {participant}
@@ -127,19 +138,27 @@ export function AddExpenseDialog({ participants, onAddExpense }: AddExpenseDialo
             </Select>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <Label>Aufgeteilt zwischen</Label>
-            <div className="p-3 rounded-lg bg-muted/50 border border-border">
-              <p className="text-muted-foreground flex items-center gap-2">
-                <span className="text-xs">👥</span>
-                <span className="text-sm">Gleichmäßig zwischen allen {participants.length} Teilnehmern</span>
-              </p>
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-slate-200 text-sm">
+              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700">
+                <Users className="h-3 w-3" />
+              </span>
+              <span className="text-slate-700">
+                Gleichmäßig zwischen allen {participants.length}{" "}
+                {participants.length === 1 ? "Teilnehmern" : "Teilnehmern"}
+              </span>
             </div>
           </div>
 
-          <Button type="submit" className="w-full">
-            Ausgabe speichern
-          </Button>
+          <div className="pt-2">
+            <Button
+              type="submit"
+              className="w-full rounded-xl bg-emerald-600 text-white font-semibold py-2.5 hover:bg-emerald-700"
+            >
+              Ausgabe speichern
+            </Button>
+          </div>
         </form>
       </DialogContent>
     </Dialog>

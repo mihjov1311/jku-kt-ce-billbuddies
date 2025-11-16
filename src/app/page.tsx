@@ -462,51 +462,52 @@ export default function App() {
   const balances = calculateBalances();
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[#f3faf8]">
       {/* =================================================================
-          HEADER MIT GRADIENT-HINTERGRUND
+          HEADER
           ================================================================= */}
-      <div className="bg-gradient-to-br from-primary via-primary to-teal-600 text-white shadow-lg">
-        <div className="container mx-auto px-4 py-6 max-w-6xl">
-          <div className="flex items-center justify-between">
-
+       <div className="bg-teal-700 text-white shadow-md">
+            <div className="mx-auto w-full max-w-6xl px-6 py-4">
+              <div className="flex items-center justify-between">
             {/* Linke Seite: Zurück-Button + Gruppen-Info */}
             <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleBackToGroups}
-                className="text-white hover:bg-white/20"
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
-                  <Receipt className="h-6 w-6" />
-                </div>
-                <div>
-                  <h1 className="text-white">{selectedGroup.name}</h1>
-                  <p className="text-white/80">
-                    Code: {selectedGroup.code} • {selectedGroup.memberCount} {selectedGroup.memberCount === 1 ? "Mitglied" : "Mitglieder"}
-                  </p>
-                </div>
-              </div>
-            </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleBackToGroups}
+                  className="text-white hover:bg-teal-600/60"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </Button>
+
+                 <div className="flex items-center gap-3">
+                   <div className="p-2.5 bg-teal-600 rounded-xl shadow-md">
+                     <Receipt className="h-6 w-6 text-white" />
+                   </div>
+                   <div>
+                     <h1 className="text-lg font-semibold">
+                       {selectedGroup.name}
+                     </h1>
+                     <p className="text-sm text-teal-50/90">
+                       Code: {selectedGroup.code} • {selectedGroup.memberCount}{" "}
+                       {selectedGroup.memberCount === 1 ? "Mitglied" : "Mitglieder"}
+                     </p>
+                   </div>
+                 </div>
+               </div>
 
             {/* Rechte Seite: Benutzer-Info + Logout */}
             <div className="flex items-center gap-3">
-              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-white/20 rounded-lg backdrop-blur-sm">
-                <div className="w-8 h-8 rounded-full bg-white/30 flex items-center justify-center">
-                  <span className="text-white">{user.name.charAt(0).toUpperCase()}</span>
+              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-teal-600 rounded-full shadow-sm">
+                <div className="w-7 h-7 rounded-full bg-teal-500 flex items-center justify-center text-sm font-semibold">
+                  {user.name.charAt(0).toUpperCase()}
                 </div>
-                <span className="text-white">
-                  {user.name}
-                </span>
+                <span className="text-sm">{user.name}</span>
               </div>
               <Button
                 variant="ghost"
                 onClick={handleLogout}
-                className="gap-2 text-white hover:bg-white/20"
+                className="gap-2 text-white hover:bg-teal-600/60"
               >
                 <LogOut className="h-4 w-4" />
                 <span className="hidden sm:inline">Abmelden</span>
@@ -525,18 +526,18 @@ export default function App() {
         <div className="grid gap-6 md:grid-cols-2 mb-6">
 
           {/* TEILNEHMER-KARTE */}
-          <Card className="border-0 shadow-sm hover:shadow-md transition-shadow">
-            <CardHeader className="border-b bg-gradient-to-r from-primary/5 to-transparent">
-              <CardTitle className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <span className="text-primary">👥</span>
-                </div>
-                Teilnehmer ({participants.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-6">
-              <div className="flex flex-wrap gap-2">
-                {participants.map((participant) => {
+          <Card className="border-0 rounded-3xl shadow-md bg-white">
+               <CardHeader className="border-b border-emerald-100 bg-white rounded-t-3xl pb-3">
+                 <CardTitle className="flex items-center gap-2 text-base font-semibold">
+                   <span className="inline-flex items-center justify-center w-7 h-7 rounded-xl bg-purple-100 text-purple-700">
+                     👥
+                   </span>
+                   Teilnehmer ({participants.length})
+                 </CardTitle>
+               </CardHeader>
+               <CardContent className="pt-4 pb-5">
+                 <div className="flex flex-wrap gap-2">
+                   {participants.map((participant) => {
                   // Prüfen, ob Teilnehmer in Ausgaben involviert ist
                   const isInvolved = expenses.some(
                     (expense) =>
@@ -547,62 +548,75 @@ export default function App() {
                   // Prüfen, ob aktueller Benutzer
                   const isCurrentUser = user && participant === user.name;
 
-                  return (
-                    <Badge
-                      key={participant}
-                      variant={isCurrentUser ? "default" : "secondary"}
-                      className="px-3 py-2 flex items-center gap-2 rounded-full"
-                    >
-                      <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
-                        <span className="text-xs">{participant.charAt(0).toUpperCase()}</span>
-                      </div>
-                      {participant}
-                      {isCurrentUser && <span className="text-xs opacity-80">(Sie)</span>}
-                      {/* X-Button zum Entfernen (nur wenn nicht involviert und nicht aktueller Benutzer) */}
-                      {!isInvolved && !isCurrentUser && (
-                        <button
-                          onClick={() => removeParticipant(participant)}
-                          className="hover:text-destructive ml-1"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      )}
-                    </Badge>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
 
-          {/* ZUSAMMENFASSUNGS-KARTE */}
-          <Card className="border-0 shadow-sm hover:shadow-md transition-shadow">
-            <CardHeader className="border-b bg-gradient-to-r from-primary/5 to-transparent">
-              <CardTitle className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <span className="text-primary">📊</span>
-                </div>
-                Zusammenfassung
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-6">
-              <div className="space-y-4">
-                <div className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
-                  <span className="text-muted-foreground">Gesamtausgaben:</span>
-                  <span className="font-semibold text-lg">{totalExpenses.toFixed(2)} €</span>
-                </div>
-                <div className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
-                  <span className="text-muted-foreground">Anzahl Ausgaben:</span>
-                  <span className="font-semibold text-lg">{expenses.length}</span>
-                </div>
-                <div className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
-                  <span className="text-muted-foreground">Offene Schulden:</span>
-                  <span className="font-semibold text-lg">{balances.length}</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+          return (
+            <span
+              key={participant}
+              className={`px-3 py-1.5 rounded-full text-sm flex items-center gap-2 shadow-sm
+                ${
+                  isCurrentUser
+                    ? "bg-teal-700 text-white shadow-md"
+                                  : "bg-[#e6fbf7] text-teal-900"
+                }`}
+            >
+              <span
+                className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-semibold
+                  ${
+                    isCurrentUser ? "bg-teal-700 text-white shadow-md"
+                                                : "bg-[#e6fbf7] text-teal-900"
+                  }`}
+              >
+                {participant.charAt(0).toUpperCase()}
+              </span>
+              {participant}
+              {isCurrentUser && (
+                <span className="text-xs opacity-90 ml-1">(Sie)</span>
+              )}
+              {!isInvolved && !isCurrentUser && (
+                <button
+                  onClick={() => removeParticipant(participant)}
+                  className="ml-1 text-xs opacity-60 hover:opacity-100 hover:text-red-500"
+                >
+                  ✕
+                </button>
+              )}
+            </span>
+          );
+        })}
+      </div>
+    </CardContent>
+  </Card>
 
+   {/* ZUSAMMENFASSUNGS-KARTE */}
+    <Card className="border-0 rounded-3xl shadow-md bg-white">
+        <CardHeader className="border-b border-emerald-100 bg-white rounded-t-3xl pb-3">
+          <CardTitle className="flex items-center gap-2 text-base font-semibold">
+            <span className="inline-flex items-center justify-center w-7 h-7 rounded-xl bg-sky-100">
+              📊
+            </span>
+            Zusammenfassung
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-4 pb-5">
+          <div className="space-y-3">
+            <div className="flex justify-between items-center px-4 py-3 rounded-xl bg-slate-50">
+              <span className="text-sm text-slate-600">Gesamtausgaben:</span>
+              <span className="font-semibold">
+                {totalExpenses.toFixed(2)} €
+              </span>
+            </div>
+            <div className="flex justify-between items-center px-4 py-3 rounded-xl bg-slate-50">
+              <span className="text-sm text-slate-600">Anzahl Ausgaben:</span>
+              <span className="font-semibold">{expenses.length}</span>
+            </div>
+            <div className="flex justify-between items-center px-4 py-3 rounded-xl bg-slate-50">
+              <span className="text-sm text-slate-600">Offene Schulden:</span>
+              <span className="font-semibold">{balances.length}</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
         {/* BUTTONS: Ausgabe hinzufügen + Rechnung scannen */}
         <div className="mb-6 flex items-center gap-3">
           <AddExpenseDialog
@@ -611,15 +625,14 @@ export default function App() {
           />
           <Button
             variant="outline"
-            className="gap-2 shadow-sm hover:shadow-md transition-shadow border-2 border-dashed border-primary/30"
-            size="lg"
+            className="gap-2 rounded-full border-2 border-dashed border-emerald-300 bg-white hover:bg-emerald-50 px-5 py-2 shadow-sm"
             onClick={() => {
               // Platzhalter für zukünftige OCR-Funktionalität
               alert("OCR-Funktion kommt bald! Hier können Sie in Zukunft Rechnungen fotografieren und automatisch einlesen.");
             }}
           >
-            <Camera className="h-5 w-5 text-primary" />
-            <span className="hidden sm:inline">Rechnung scannen</span>
+            <Camera className="h-5 w-5 text-emerald-700" />
+            <span className="hidden sm:inline text-sm">Rechnung scannen</span>
           </Button>
         </div>
 
