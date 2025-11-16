@@ -275,103 +275,122 @@ export function GroupManagement({ userName, onSelectGroup, onLogout }: GroupMana
   // =============================================================================
   // LADE- UND FEHLER-ANZEIGE
   // =============================================================================
+
   if (loading) {
     return (
-        <div className="min-h-screen flex items-center justify-center">
-          <p>Lade Gruppen...</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <p>Lade Gruppen...</p>
+      </div>
     );
   }
 
   if (error) {
     return (
-        <div className="min-h-screen flex items-center justify-center">
-          <p className="text-destructive">{error}</p>
-          <Button onClick={onLogout} className="ml-4">Abmelden</Button>
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-destructive">{error}</p>
+        <Button onClick={onLogout} className="ml-4">
+          Abmelden
+        </Button>
+      </div>
     );
   }
 
   return (
-      <div className="min-h-screen bg-background">
-        <div className="bg-gradient-to-br from-primary via-primary to-teal-600 text-white shadow-lg">
-          <div className="container mx-auto px-4 py-8 max-w-4xl">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
-                  <Users className="h-8 w-8" />
-                </div>
-                <div>
-                  <h1 className="text-white text-3xl">Meine Gruppen</h1>
-                  <p className="text-white/90">
-                    Hallo {userName}! Wählen Sie eine Gruppe aus oder erstellen Sie eine neue.
-                  </p>
-                </div>
+    <div className="min-h-screen bg-[#f3faf8]">
+      {/* HEADER */}
+      <div className="bg-teal-700 text-white shadow-md">
+        <div className="mx-auto w-full max-w-6xl px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="p-2.5 bg-teal-600 rounded-2xl shadow-md">
+                <Users className="h-6 w-6 text-white" />
               </div>
-              <Button
-                  variant="ghost"
-                  onClick={onLogout}
-                  className="gap-2 text-white hover:bg-white/20"
-              >
-                <LogOut className="h-4 w-4" />
-                <span className="hidden sm:inline">Abmelden</span>
-              </Button>
+              <div>
+                <h1 className="text-x1 font-semibold">Meine Gruppen</h1>
+                <p className="text.sm text-teal-50/90">
+                  Hallo {userName}! Wählen Sie eine Gruppe aus oder erstellen Sie eine
+                  neue.
+                </p>
+              </div>
             </div>
+            <Button
+              variant="ghost"
+              onClick={onLogout}
+              className="gap-2 text-white hover:bg-teal-600/60"
+            >
+              <LogOut className="h-4 w-4" />
+              <span className="hidden sm:inline">Abmelden</span>
+            </Button>
           </div>
         </div>
+      </div>
 
-        <div className="container mx-auto py-8 px-4 max-w-4xl">
-          <div className="grid gap-4 md:grid-cols-2 mb-8">
-            <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-              <DialogTrigger asChild>
-                <div>
-                  <Card className="cursor-pointer hover:shadow-lg hover:scale-105 transition-all duration-200 border-2 border-dashed border-primary/30 bg-gradient-to-br from-white to-primary/5">
-                    <CardContent className="flex flex-col items-center justify-center py-12">
-                      <div className="p-4 rounded-2xl bg-gradient-to-br from-primary to-teal-600 text-white mb-4 shadow-lg">
-                        <Plus className="h-8 w-8" />
-                      </div>
-                      <h3 className="mb-2">Neue Gruppe erstellen</h3>
-                      <p className="text-muted-foreground text-center text-sm">
-                        Erstellen Sie eine Gruppe und teilen Sie den Code
-                      </p>
-                    </CardContent>
-                  </Card>
-                </div>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Neue Gruppe erstellen</DialogTitle>
-                  <DialogDescription>
-                    Erstellen Sie eine neue Gruppe. Andere können über den generierten Code beitreten.
-                  </DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleCreateGroup} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="group-name">Gruppenname</Label>
+      {/* CONTENT */}
+      <div className="container mx-auto py-8 px-4 max-w-5xl">
+        {/* ACTION CARDS */}
+        <div className="grid gap-4 md:grid-cols-2 mb-8">
+          {/* Neue Gruppe erstellen */}
+          <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <div>
+                <Card className="cursor-pointer rounded-3xl hover:shadow-lg hover:scale-[1.02] transition-all duration-200 border-2 border-dashed border-emerald-200 bg-gradient-to-br from-white to-emerald-50">
+                  <CardContent className="flex flex-col items-center justify-center py-12">
+                    <div className="p-4 rounded-2xl bg-teal-600 text-white mb-4 shadow-lg">
+                      <Plus className="h-8 w-8" />
+                    </div>
+                    <h3 className="mb-2 text-lg font-semibold">
+                      Neue Gruppe erstellen
+                    </h3>
+                    <p className="text-muted-foreground text-center text-sm">
+                      Erstellen Sie eine Gruppe und teilen Sie den Code
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+            </DialogTrigger>
+            <DialogContent className="bg-slate-50">
+              <DialogHeader>
+                <DialogTitle>Neue Gruppe erstellen</DialogTitle>
+                <DialogDescription>
+                  Erstellen Sie eine neue Gruppe. Andere können über den generierten
+                  Code beitreten.
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleCreateGroup} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="group-name">Gruppenname</Label>
                     <Input
-                        id="group-name"
-                        placeholder="z.B. Urlaub Italien 2025"
-                        value={newGroupName}
-                        onChange={(e) => setNewGroupName(e.target.value)}
-                        required
+                      id="group-name"
+                      placeholder="z.B. Urlaub Italien 2025"
+                      value={newGroupName}
+                      onChange={(e) => setNewGroupName(e.target.value)}
+                      required
+                      className="border-2 border-teal-500 rounded-xl px-4 py-2
+                                 focus-visible:ring-2 focus-visible:ring-teal-500
+                                 focus-visible:outline-none"
                     />
-                  </div>
-                  <Button type="submit" className="w-full" disabled={dialogLoading}>
-                    {dialogLoading ? "Wird erstellt..." : "Gruppe erstellen"}
-                  </Button>
-                </form>
-              </DialogContent>
-            </Dialog>
+                </div>
+                <Button
+                    type="submit"
+                    className="w-full rounded-xl bg-teal-600 text-white font-semibold py-3 hover:bg-teal-700"
+                    disabled={dialogLoading}
+                 >
+                  {dialogLoading ? "Wird erstellt..." : "Gruppe erstellen"}
+                </Button>
+              </form>
+            </DialogContent>
+          </Dialog>
 
+          {/* Gruppe beitreten */}
             <Dialog open={joinDialogOpen} onOpenChange={setJoinDialogOpen}>
               <DialogTrigger asChild>
                 <div>
-                  <Card className="cursor-pointer hover:shadow-lg hover:scale-105 transition-all duration-200 border-2 border-dashed border-primary/30 bg-gradient-to-br from-white to-cyan-50/30">
+                  <Card className="cursor-pointer rounded-3xl hover:shadow-lg hover:scale-[1.02] transition-all duration-200 border-2 border-dashed border-emerald-200 bg-gradient-to-br from-white to-cyan-50">
                     <CardContent className="flex flex-col items-center justify-center py-12">
-                      <div className="p-4 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 text-white mb-4 shadow-lg">
+                      <div className="p-4 rounded-2xl bg-blue-600 text-white mb-4 shadow-lg">
                         <LogIn className="h-8 w-8" />
                       </div>
-                      <h3 className="mb-2">Gruppe beitreten</h3>
+                      <h3 className="mb-2 text-lg font-semibold">Gruppe beitreten</h3>
                       <p className="text-muted-foreground text-center text-sm">
                         Treten Sie einer Gruppe über einen 6-stelligen Code bei
                       </p>
@@ -379,114 +398,153 @@ export function GroupManagement({ userName, onSelectGroup, onLogout }: GroupMana
                   </Card>
                 </div>
               </DialogTrigger>
-              <DialogContent>
+
+              <DialogContent className="bg-slate-50 rounded-3xl">
                 <DialogHeader>
-                  <DialogTitle>Gruppe beitreten</DialogTitle>
-                  <DialogDescription>
+                  <DialogTitle className="text-xl font-semibold text-center">
+                    Gruppe beitreten
+                  </DialogTitle>
+                  <DialogDescription className="text-center">
                     Geben Sie den 6-stelligen Code ein, den Sie erhalten haben
                   </DialogDescription>
                 </DialogHeader>
-                <form onSubmit={handleJoinGroup} className="space-y-4">
+
+                <form onSubmit={handleJoinGroup} className="space-y-6 mt-2">
                   <div className="space-y-2">
                     <Label htmlFor="join-code">Gruppen-Code</Label>
+
                     <Input
-                        id="join-code"
-                        placeholder="XXXXXX"
-                        value={joinCode}
-                        onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                        maxLength={6}
-                        required
+                      id="join-code"
+                      placeholder="XXXXXX"
+                      value={joinCode}
+                      onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                      maxLength={6}
+                      required
+                      className="
+                        border-2 border-teal-500 rounded-xl px-4 py-2 text-lg tracking-[0.3em]
+                        focus-visible:ring-2 focus-visible:ring-teal-500
+                        focus-visible:outline-none
+                      "
                     />
-                    <p className="text-muted-foreground">
+
+                    <p className="text-muted-foreground text-sm">
                       Geben Sie den 6-stelligen Code ein, den Sie erhalten haben
                     </p>
                   </div>
-                  <Button type="submit" className="w-full" disabled={dialogLoading}>
+
+                  <Button
+                    type="submit"
+                    className="w-full rounded-xl bg-teal-600 text-white font-semibold py-3 hover:bg-teal-700"
+                    disabled={dialogLoading}
+                  >
                     {dialogLoading ? "Wird beigetreten..." : "Beitreten"}
                   </Button>
                 </form>
               </DialogContent>
             </Dialog>
-          </div>
-
-          {groups.length > 0 ? (
-              <div>
-                <h2 className="mb-6 flex items-center gap-2">
-                  <span>Ihre Gruppen</span>
-                  <Badge variant="secondary" className="rounded-full">{groups.length}</Badge>
-                </h2>
-                <div className="grid gap-4">
-                  {groups.map((group) => (
-                      <Card key={group.id} className="border-0 shadow-sm hover:shadow-lg transition-all duration-200 hover:scale-[1.02]">
-                        <CardHeader className="border-b bg-gradient-to-r from-primary/5 to-transparent">
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex-1 flex items-start gap-3">
-                              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-teal-600 flex items-center justify-center text-white shadow-md flex-shrink-0">
-                                <span className="text-xl">{group.name.charAt(0).toUpperCase()}</span>
-                              </div>
-                              <div className="flex-1">
-                                <CardTitle className="mb-1">{group.name}</CardTitle>
-                                <CardDescription className="flex items-center gap-2 text-sm">
-                            <span className="flex items-center gap-1">
-                              👥 {group.memberCount} {group.memberCount === 1 ? "Mitglied" : "Mitglieder"}
-                            </span>
-                                </CardDescription>
-                              </div>
-                            </div>
-                            <Button
-                                onClick={() => onSelectGroup(group)}
-                                className="gap-2 shadow-sm"
-                                size="lg"
-                            >
-                              Öffnen
-                              <ArrowRight className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </CardHeader>
-                        <CardContent className="pt-4">
-                          <div className="flex items-center gap-2">
-                            <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-lg flex-1">
-                              <span className="text-sm text-muted-foreground">Code:</span>
-                              <code className="font-mono font-semibold text-primary">{group.code}</code>
-                            </div>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => copyToClipboard(group.code)}
-                                className="gap-2"
-                            >
-                              {copiedCode === group.code ? (
-                                  <>
-                                    <Check className="h-4 w-4 text-green-600" />
-                                    Kopiert
-                                  </>
-                              ) : (
-                                  <>
-                                    <Copy className="h-4 w-4" />
-                                    Kopieren
-                                  </>
-                              )}
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                  ))}
-                </div>
-              </div>
-          ) : (
-              <Card className="border-0 shadow-sm bg-muted/50">
-                <CardContent className="py-12 flex flex-col items-center justify-center text-center">
-                  <div className="p-4 rounded-2xl bg-white mb-4 shadow-md">
-                    <Users className="h-8 w-8 text-muted-foreground" />
-                  </div>
-                  <h3 className="text-xl font-semibold mb-2">Noch keine Gruppen</h3>
-                  <p className="text-muted-foreground">
-                    Erstellen Sie eine neue Gruppe oder treten Sie einer Gruppe bei, um zu starten.
-                  </p>
-                </CardContent>
-              </Card>
-          )}
         </div>
+
+        {/* GROUP LIST */}
+        {groups.length > 0 ? (
+          <div>
+            {/* Titel wie im Prototyp */}
+            <h2 className="mb-6 flex items-center gap-2 text-lg font-semibold text-slate-900">
+              <span>Ihre Gruppen</span>
+              <span className="text-emerald-600 text-sm">{groups.length}</span>
+            </h2>
+
+            <div className="grid gap-4">
+              {groups.map((group) => (
+                <Card
+                  key={group.id}
+                  className="border-0 rounded-3xl shadow-md bg-gradient-to-r from-emerald-50 to-emerald-50/40"
+                >
+                  {/* Oberer Teil der Karte */}
+                  <CardHeader className="border-b border-emerald-100 bg-transparent rounded-t-3xl pb-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-start gap-3">
+                        {/* Avatar links */}
+                        <div className="w-12 h-12 rounded-2xl bg-teal-600 flex items-center justify-center text-white shadow-md flex-shrink-0">
+                          <span className="text-xl">
+                            {group.name.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                        <div>
+                          <CardTitle className="mb-1">{group.name}</CardTitle>
+                          <CardDescription className="flex items-center gap-2 text-sm">
+                            <span className="flex items-center gap-1 text-purple-700">
+                              👥 {group.memberCount}{" "}
+                              {group.memberCount === 1 ? "Mitglied" : "Mitglieder"}
+                            </span>
+                          </CardDescription>
+                        </div>
+                      </div>
+
+                      {/* Öffnen-Button als „Pille“ rechts */}
+                      <Button
+                        onClick={() => onSelectGroup(group)}
+                        className="gap-2 shadow-sm rounded-full px-6 bg-teal-600 hover:bg-teal-700 text-white"
+                        size="sm"
+                      >
+                        Öffnen
+                        <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardHeader>
+
+                  {/* Unterer Teil: Code + Kopieren */}
+                  <CardContent className="pt-4 pb-5">
+                    <div className="flex items-center gap-3">
+                      {/* großer Code-Pill */}
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 h-11 px-5 rounded-full bg-white border border-emerald-100">
+                          <span className="text-sm text-muted-foreground">Code:</span>
+                          <code className="font-mono font-semibold text-emerald-700 tracking-[0.5em]">
+                            {group.code}
+                          </code>
+                        </div>
+                      </div>
+
+                      {/* Kopieren-Button als runde Outline-Pille */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => copyToClipboard(group.code)}
+                        className="gap-2 rounded-full border-slate-300 bg-white hover:bg-slate-50"
+                      >
+                        {copiedCode === group.code ? (
+                          <>
+                            <Check className="h-4 w-4 text-green-600" />
+                            Kopiert
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="h-4 w-4" />
+                            Kopieren
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <Card className="border-0 shadow-sm bg-white rounded-3xl">
+            <CardContent className="py-12 flex flex-col items-center justify-center text-center">
+              <div className="p-4 rounded-2xl bg-emerald-50 mb-4 shadow-md">
+                <Users className="h-8 w-8 text-emerald-500" />
+              </div>
+              <h3 className="text-xl font-semibold mb-2">Noch keine Gruppen</h3>
+              <p className="text-muted-foreground">
+                Erstellen Sie eine neue Gruppe oder treten Sie einer Gruppe bei, um zu
+                starten.
+              </p>
+            </CardContent>
+          </Card>
+        )}
       </div>
+    </div>
   );
 }

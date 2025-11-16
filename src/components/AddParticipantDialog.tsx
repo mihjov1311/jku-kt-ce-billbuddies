@@ -27,12 +27,6 @@ export function AddParticipantDialog({ onAddParticipant }: AddParticipantDialogP
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" className="gap-2 hover:shadow-md transition-shadow">
-          <UserPlus className="h-4 w-4" />
-          Person hinzufügen
-        </Button>
-      </DialogTrigger>
       <DialogContent>
         <DialogHeader className="pb-4 border-b">
           <DialogTitle className="flex items-center gap-2 text-xl">
