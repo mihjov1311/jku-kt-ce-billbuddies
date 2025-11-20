@@ -13,7 +13,7 @@ interface Group {
   name: string;
   code: string;
   memberCount: number;
-  members: string[];
+  members: { id: string; name: string }[];
 }
 
 interface GroupManagementProps {
@@ -35,105 +35,99 @@ export function GroupManagement({ userName, onSelectGroup, onLogout }: GroupMana
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [dialogLoading, setDialogLoading] = useState(false);
 
+    const fetchUserGroups = async () => {
+        setLoading(true);
+        setError(null);
+        console.log("DEBUG: 1. fetchUserGroups gestartet.");
 
-  const fetchUserGroups = async () => {
-    setLoading(true);
-    setError(null);
-    console.log("DEBUG: 1. fetchUserGroups gestartet.");
+        try {
+            // 1. Benutzer holen
+            const { data: { user }, error: authError } = await supabase.auth.getUser();
+            if (authError || !user) throw new Error("Benutzer nicht gefunden.");
 
-    try {
-      // 1. Benutzer holen
-      console.log("DEBUG: 2. Hole Benutzer (auth.getUser)...");
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError || !user) throw new Error("Benutzer nicht gefunden (authError).");
-      console.log("DEBUG: 3. Benutzer gefunden:", user.id);
+            // 2. Benutzerprofil holen
+            const { data: profile, error: profileError } = await supabase
+                .from("mitglieder")
+                .select("benutzername")
+                .eq("id", user.id)
+                .single();
 
-      // 2. Benutzerprofil holen
-      console.log("DEBUG: 4. Hole Profil (from 'mitglieder')...");
-      const { data: profile, error: profileError } = await supabase
-          .from("mitglieder")
-          .select("benutzername")
-          .eq("id", user.id)
-          .single();
+            if (profileError || !profile) throw new Error("Benutzerprofil nicht gefunden.");
+            const currentUsername = profile.benutzername;
 
-      if (profileError || !profile) throw new Error(`Benutzerprofil nicht gefunden (profileError): ${profileError?.message}`);
-      const currentUsername = profile.benutzername;
-      console.log("DEBUG: 5. Profil gefunden:", currentUsername);
-
-      // 3. Gruppen-IDs holen
-      console.log("DEBUG: 6. Hole Gruppen-IDs (from 'gruppenmitglieder')...");
-      const { data: groupEntries, error: groupsError } = await supabase
-          .from("gruppenmitglieder")
-          .select(`
+            // 3. Gruppen-IDs holen
+            const { data: groupEntries, error: groupsError } = await supabase
+                .from("gruppenmitglieder")
+                .select(`
             gruppen (
               gruppenid,
               gruppenname,
               code
             )
           `)
-          .eq("benutzername", currentUsername);
+                .eq("benutzername", currentUsername);
 
-      if (groupsError) throw new Error(`Fehler beim Holen der Gruppen-IDs (groupsError): ${groupsError.message}`);
-      console.log("DEBUG: 7. Gruppen-IDs gefunden:", groupEntries);
+            if (groupsError) throw new Error(groupsError.message);
 
-      if (!groupEntries || groupEntries.length === 0) {
-        setGroups([]);
-        setLoading(false);
-        console.log("DEBUG: 8. Keine Gruppen gefunden, Ladevorgang beendet.");
-        return;
-      }
+            if (!groupEntries || groupEntries.length === 0) {
+                setGroups([]);
+                setLoading(false);
+                return;
+            }
 
-      const userGroups = groupEntries.map((entry: any) => entry.gruppen);
+            const userGroups = groupEntries.map((entry: any) => entry.gruppen);
 
-      // 4. Mitgliederlisten holen (Dieser Teil ist oft der Übeltäter)
-      console.log("DEBUG: 9. Hole Mitgliederlisten (Promise.all)...");
-      const groupsData = await Promise.all(
-          userGroups.map(async (group: any) => {
+            // 4. Mitgliederlisten holen
+            const groupsData = await Promise.all(
+                userGroups.map(async (group: any) => {
 
-            // KORRIGIERT: 'group.gruppenid'
-            console.log(`DEBUG: 9a. Hole Mitglieder für Gruppe ${group.gruppenid}`);
-            const { data: memberList, error: memberListError } = await supabase
-                .from("gruppenmitglieder")
-                .select(`
+                    // WICHTIG: Hier holen wir jetzt auch 'benutzername' (die ID)!
+                    const { data: memberList, error: memberListError } = await supabase
+                        .from("gruppenmitglieder")
+                        .select(`
+                benutzername, 
                 mitglieder (
                   vorname,
                   nachname
                 )
               `)
-                // KORRIGIERT: 'group.gruppenid'
-                .eq("gruppenid", group.gruppenid);
+                        .eq("gruppenid", group.gruppenid);
 
-            if (memberListError) {
-              throw new Error(`Fehler beim Laden der Mitglieder für Gruppe ${group.gruppenid}: ${memberListError.message}`);
-            }
-            console.log(`DEBUG: 9b. Mitglieder für Gruppe ${group.gruppenid} gefunden:`, memberList);
+                    if (memberListError) throw new Error(memberListError.message);
 
-            const memberNames = memberList
-                .map((m: any) => m.mitglieder ? `${m.mitglieder.vorname} ${m.mitglieder.nachname}` : null)
-                .filter(Boolean);
+                    // WICHTIG: Hier bauen wir die Objekte für das Dropdown
+                    // Vorher war das ein Array von Strings, jetzt Array von Objekten
+                    const memberObjects = memberList
+                        .map((m: any) => {
+                            // Falls mal ein Datensatz kaputt ist, abfangen
+                            if (!m.mitglieder) return null;
 
-            // KORRIGIERT: Mappt Datenbank-Spalten auf Interface-Namen
-            return {
-              id: group.gruppenid.toString(),
-              name: group.gruppenname,
-              code: group.code,
-              members: memberNames,
-              memberCount: memberNames.length,
-            };
-          })
-      );
+                            return {
+                                id: m.benutzername, // Das ist der Wert für die Datenbank (z.B. "karl")
+                                name: `${m.mitglieder.vorname} ${m.mitglieder.nachname}` // Das ist für die Anzeige (z.B. "Karl Hauser")
+                            };
+                        })
+                        .filter((item: any) => item !== null); // Leere Einträge rausfiltern
 
-      console.log("DEBUG: 10. Alle Daten verarbeitet.");
-      setGroups(groupsData as Group[]);
+                    return {
+                        id: group.gruppenid.toString(),
+                        name: group.gruppenname,
+                        code: group.code,
+                        members: memberObjects, // HIER übergeben wir jetzt die fertigen Objekte
+                        memberCount: memberObjects.length,
+                    };
+                })
+            );
 
-    } catch (err: any) {
-      // Dies ist der Fehler, den Sie sehen
-      console.error("DEBUG: FEHLER IN fetchUserGroups:", err.message ? err.message : err);
-      setError(err.message || "Ein Fehler ist aufgetreten.");
-    } finally {
-      setLoading(false);
-    }
-  };
+            setGroups(groupsData as Group[]);
+
+        } catch (err: any) {
+            console.error("Fehler:", err);
+            setError(err.message || "Ein Fehler ist aufgetreten.");
+        } finally {
+            setLoading(false);
+        }
+    };
 
   // =============================================================================
   // NEU: DATENABRUF MIT 'useEffect' (MIT DEBUG-LOGGING)
