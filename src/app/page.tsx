@@ -123,7 +123,7 @@ export default function App() {
                 .from("ausgaben")
                 .select("*")
                 .eq("gruppenid", groupIdInt)
-                .order("created_at", { ascending: false });
+                .order("ausgabeid", { ascending: false });
 
             if (error) throw error;
 
@@ -131,12 +131,11 @@ export default function App() {
                 const mappedExpenses: Expense[] = data.map((item: any) => ({
                     id: item.ausgabeid.toString(),
                     description: item.beschreibung,
-                    amount: item.betrag,
+                    amount: parseFloat(item.betrag),
                     category: item.kategorie,
-                    paidBy: item.benutzername, // Hier kommt die ID aus der DB (z.B. "karl")
-                    // Wir nehmen alle IDs der aktuellen Teilnehmer
+                    paidBy: item.benutzername,
                     splitBetween: selectedGroup.members.map(m => m.id),
-                    date: item.created_at ? new Date(item.created_at) : new Date(),
+                    date: new Date(),
                 }));
                 setExpenses(mappedExpenses);
             }
@@ -306,7 +305,10 @@ export default function App() {
         );
     }
 
-    const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+    const totalExpenses = expenses.reduce((sum, expense) => {
+        return sum + (Number(expense.amount) || 0);
+    }, 0);
+
     const balances = calculateBalances();
 
     return (
