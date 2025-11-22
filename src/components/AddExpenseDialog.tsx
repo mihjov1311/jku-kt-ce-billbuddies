@@ -153,6 +153,7 @@ export function AddExpenseDialog({ groupId, participants, onExpenseAdded }: AddE
                                 <SelectItem value="Essen & Trinken">🍽️ Essen &amp; Trinken</SelectItem>
                                 <SelectItem value="Transport">🚗 Transport</SelectItem>
                                 <SelectItem value="Unterkunft">🏠 Unterkunft</SelectItem>
+                                <SelectItem value="Einkaufen">🛒 Einkaufen</SelectItem>
                                 <SelectItem value="Sonstiges">📦 Sonstiges</SelectItem>
                             </SelectContent>
                         </Select>
