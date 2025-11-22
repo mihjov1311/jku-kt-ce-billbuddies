@@ -10,7 +10,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { AuthPage } from "@/components/AuthPage";
 import { GroupManagement } from "@/components/GroupManagement";
-import { AddExpenseDialog, Participant } from "@/components/AddExpenseDialog"; // Import angepasst
+import { AddExpenseDialog, Participant } from "@/components/AddExpenseDialog"
 import { ExpenseList } from "@/components/ExpenseList";
 import { BalanceOverview } from "@/components/BalanceOverview";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
