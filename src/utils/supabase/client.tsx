@@ -19,7 +19,7 @@
  * - Der publicAnonKey ist sicher für Frontend-Nutzung, da er nur begrenzte Rechte hat
  */
 
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { createClient } from "@supabase/supabase-js";
 import { projectId, publicAnonKey } from "./info";
 
 // Variable speichert den erstellten Client (wird nur einmal erstellt)
