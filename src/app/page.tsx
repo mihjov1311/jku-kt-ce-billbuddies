@@ -1,9 +1,6 @@
-/*/* =============================================================================
+/* =============================================================================
  * APP.TSX - HAUPTKOMPONENTE DER BILLBUDDIES-ANWENDUNG
  * =============================================================================
- *
- * Dies ist die zentrale Komponente, die die gesamte App steuert.
- * JETZT VERBUNDEN MIT SUPABASE DATENBANK.
  */
 "use client";
 import { useState, useEffect, useCallback } from "react";
@@ -21,75 +18,73 @@ import { Receipt, LogOut, ArrowLeft, Camera } from "lucide-react";
  * TYPESCRIPT INTERFACES
  */
 
-// Eine Ausgabe (Frontend-Struktur)
 interface Expense {
     id: string;
     description: string;
     amount: number;
     category?: string;
-    paidBy: string;         // ID des Zahlers (z.B. "karl")
-    splitBetween: string[]; // Array von IDs (z.B. ["karl", "luma06"])
+    paidBy: string;
+    splitBetween: string[];
     date: Date;
 }
 
-// Eine Schuld
 interface Balance {
-    from: string;   // Name des Schuldners (für die Anzeige)
-    to: string;     // Name des Gläubigers (für die Anzeige)
+    from: string;
+    to: string;
     amount: number;
 }
 
-// Ein Benutzer
 interface User {
     name: string;
     email?: string;
+    dbId?: string; // NEU: Die echte Benutzer-ID aus der Datenbank
 }
 
-// Eine Gruppe
 interface Group {
     id: string;
     name: string;
     code: string;
     memberCount: number;
-    members: Participant[]; // Wir nutzen das Interface aus dem Dialog
+    members: Participant[];
 }
 
 /**
  * HAUPTKOMPONENTE
  */
 export default function App() {
-    // =============================================================================
-    // STATE-VARIABLEN
-    // =============================================================================
-
+    // --- STATE ---
     const [user, setUser] = useState<User | null>(null);
     const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
-    // WICHTIG: Participants sind jetzt Objekte { id, name }
     const [participants, setParticipants] = useState<Participant[]>([]);
     const [expenses, setExpenses] = useState<Expense[]>([]);
-
     const [isLoading, setIsLoading] = useState(false);
 
-    // =============================================================================
-    // 1. AUTHENTIFIZIERUNG
-    // =============================================================================
-
+    // --- 1. AUTHENTIFIZIERUNG & PROFIL LADEN ---
     useEffect(() => {
-        supabase.auth.getSession().then(({ data: { session } }) => {
+        const getUserProfile = async (session: any) => {
             if (session?.user) {
+                // Wir laden den echten Benutzernamen aus der Tabelle 'mitglieder'
+                const { data: profile } = await supabase
+                    .from('mitglieder')
+                    .select('benutzername')
+                    .eq('id', session.user.id)
+                    .single();
+
                 setUser({
                     name: session.user.email || "Benutzer",
-                    email: session.user.email
+                    email: session.user.email,
+                    dbId: profile?.benutzername // Hier speichern wir z.B. "luma06"
                 });
             }
+        };
+
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            getUserProfile(session);
         });
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             if (session?.user) {
-                setUser({
-                    name: session.user.email || "Benutzer",
-                    email: session.user.email
-                });
+                getUserProfile(session);
             } else {
                 setUser(null);
                 setSelectedGroup(null);
@@ -106,10 +101,7 @@ export default function App() {
         setExpenses([]);
     };
 
-    // =============================================================================
-    // 2. DATEN LADEN
-    // =============================================================================
-
+    // --- 2. DATEN LADEN ---
     const fetchExpenses = useCallback(async () => {
         if (!selectedGroup) return;
 
@@ -131,11 +123,11 @@ export default function App() {
                 const mappedExpenses: Expense[] = data.map((item: any) => ({
                     id: item.ausgabeid.toString(),
                     description: item.beschreibung,
-                    amount: parseFloat(item.betrag),
+                    amount: parseFloat(item.betrag), // Wichtig: Text zu Zahl
                     category: item.kategorie,
                     paidBy: item.benutzername,
                     splitBetween: selectedGroup.members.map(m => m.id),
-                    date: new Date(),
+                    date: item.created_at ? new Date(item.created_at) : new Date(),
                 }));
                 setExpenses(mappedExpenses);
             }
@@ -152,13 +144,8 @@ export default function App() {
         }
     }, [selectedGroup, fetchExpenses]);
 
-
-    // =============================================================================
-    // TEILNEHMER-VERWALTUNG (LOKAL)
-    // =============================================================================
-
+    // --- TEILNEHMER ENTFERNEN (UI) ---
     const removeParticipant = (idToRemove: string) => {
-        // Wir prüfen anhand der ID
         const isInvolved = expenses.some(
             (expense) =>
                 expense.paidBy === idToRemove ||
@@ -170,10 +157,7 @@ export default function App() {
         }
     };
 
-    // =============================================================================
-    // AUSGABEN & ABRECHNUNG
-    // =============================================================================
-
+    // --- AKTIONEN ---
     const handleExpenseAdded = () => {
         fetchExpenses();
     };
@@ -195,18 +179,13 @@ export default function App() {
         }
     };
 
-    // --- KORRIGIERTE ABRECHNUNG (Arbeitet mit IDs) ---
+    // --- BERECHNUNG DER SCHULDEN ---
     const calculateBalances = (): Balance[] => {
         const balances: Record<string, number> = {};
 
-        // 1. Alles auf 0 setzen (nutze IDs als Key)
-        participants.forEach((p) => {
-            balances[p.id] = 0;
-        });
+        participants.forEach((p) => { balances[p.id] = 0; });
 
-        // 2. Ausgaben verrechnen
         expenses.forEach((expense) => {
-            // Prüfen, welche der beteiligten IDs noch in der Gruppe sind
             const validSplitIds = expense.splitBetween.filter(id =>
                 participants.some(p => p.id === id)
             );
@@ -215,12 +194,10 @@ export default function App() {
 
             const shareAmount = expense.amount / validSplitIds.length;
 
-            // Zahler (ID) bekommt Plus
             if (balances[expense.paidBy] !== undefined) {
                 balances[expense.paidBy] += expense.amount;
             }
 
-            // Alle Beteiligten (IDs) bekommen Minus
             validSplitIds.forEach((personId) => {
                 if (balances[personId] !== undefined) {
                     balances[personId] -= shareAmount;
@@ -228,7 +205,6 @@ export default function App() {
             });
         });
 
-        // 3. Sortieren (Schuldner & Gläubiger)
         const debtors = Object.entries(balances)
             .filter(([_, amount]) => amount < -0.01)
             .sort((a, b) => a[1] - b[1]);
@@ -241,14 +217,12 @@ export default function App() {
         let i = 0;
         let j = 0;
 
-        // 4. Ausgleichen
         while (i < debtors.length && j < creditors.length) {
             const [debtorId, debtAmount] = debtors[i];
             const [creditorId, creditAmount] = creditors[j];
             const amount = Math.min(-debtAmount, creditAmount);
 
             if (amount > 0.01) {
-                // HIER IST DER TRICK: Wir wandeln die ID ("karl") zurück in den Namen ("Karl Hauser") für die Anzeige
                 const debtorName = participants.find(p => p.id === debtorId)?.name || debtorId;
                 const creditorName = participants.find(p => p.id === creditorId)?.name || creditorId;
 
@@ -269,14 +243,10 @@ export default function App() {
         return result;
     };
 
-    // =============================================================================
-    // GRUPPEN-AUSWAHL
-    // =============================================================================
-
+    // --- GRUPPEN HANDLING ---
     const handleSelectGroup = (group: Group) => {
         setSelectedGroup(group);
         setExpenses([]);
-
         if (user) {
             const groupMembers = group.members ? [...group.members] : [];
             setParticipants(groupMembers);
@@ -287,10 +257,7 @@ export default function App() {
         setSelectedGroup(null);
     };
 
-    // =============================================================================
-    // RENDERING
-    // =============================================================================
-
+    // --- RENDER CHECKS ---
     if (!user) {
         return <AuthPage onLogin={() => {}} />;
     }
@@ -305,9 +272,23 @@ export default function App() {
         );
     }
 
+    // --- BERECHNUNGEN FÜR DAS DASHBOARD (Hier war der Fehler!) ---
+
+    // 1. Gesamtsumme
     const totalExpenses = expenses.reduce((sum, expense) => {
         return sum + (Number(expense.amount) || 0);
     }, 0);
+
+    // 2. Dein Beitrag (Wir vergleichen jetzt mit user.dbId)
+    const myTotalPaid = expenses
+        .filter(e => e.paidBy === user?.dbId)
+        .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+
+    // 3. Kosten pro Kopf
+    const costPerPerson = participants.length > 0 ? totalExpenses / participants.length : 0;
+
+    // 4. Dein Saldo
+    const myBalance = myTotalPaid - costPerPerson;
 
     const balances = calculateBalances();
 
@@ -318,31 +299,21 @@ export default function App() {
                 <div className="mx-auto w-full max-w-6xl px-6 py-4">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={handleBackToGroups}
-                                className="text-white hover:bg-teal-600/60"
-                            >
+                            <Button variant="ghost" size="icon" onClick={handleBackToGroups} className="text-white hover:bg-teal-600/60">
                                 <ArrowLeft className="h-5 w-5" />
                             </Button>
-
                             <div className="flex items-center gap-3">
                                 <div className="p-2.5 bg-teal-600 rounded-xl shadow-md">
                                     <Receipt className="h-6 w-6 text-white" />
                                 </div>
                                 <div>
-                                    <h1 className="text-lg font-semibold">
-                                        {selectedGroup.name}
-                                    </h1>
+                                    <h1 className="text-lg font-semibold">{selectedGroup.name}</h1>
                                     <p className="text-sm text-teal-50/90">
-                                        Code: {selectedGroup.code} • {selectedGroup.memberCount}{" "}
-                                        {selectedGroup.memberCount === 1 ? "Mitglied" : "Mitglieder"}
+                                        Code: {selectedGroup.code} • {selectedGroup.memberCount} Mitglieder
                                     </p>
                                 </div>
                             </div>
                         </div>
-
                         <div className="flex items-center gap-3">
                             <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-teal-600 rounded-full shadow-sm">
                                 <div className="w-7 h-7 rounded-full bg-teal-500 flex items-center justify-center text-sm font-semibold">
@@ -350,11 +321,7 @@ export default function App() {
                                 </div>
                                 <span className="text-sm">{user.name}</span>
                             </div>
-                            <Button
-                                variant="ghost"
-                                onClick={handleLogout}
-                                className="gap-2 text-white hover:bg-teal-600/60"
-                            >
+                            <Button variant="ghost" onClick={handleLogout} className="gap-2 text-white hover:bg-teal-600/60">
                                 <LogOut className="h-4 w-4" />
                                 <span className="hidden sm:inline">Abmelden</span>
                             </Button>
@@ -363,61 +330,31 @@ export default function App() {
                 </div>
             </div>
 
-            {/* HAUPT-CONTENT */}
+            {/* CONTENT */}
             <div className="container mx-auto py-8 px-4 max-w-6xl">
-
                 <div className="grid gap-6 md:grid-cols-2 mb-6">
-
-                    {/* TEILNEHMER-KARTE - HIER WAR DER FEHLER */}
+                    {/* TEILNEHMER */}
                     <Card className="border-0 rounded-3xl shadow-md bg-white">
                         <CardHeader className="border-b border-emerald-100 bg-white rounded-t-3xl pb-3">
                             <CardTitle className="flex items-center gap-2 text-base font-semibold">
-                                <span className="inline-flex items-center justify-center w-7 h-7 rounded-xl bg-purple-100 text-purple-700">
-                                    👥
-                                </span>
+                                <span className="inline-flex items-center justify-center w-7 h-7 rounded-xl bg-purple-100 text-purple-700">👥</span>
                                 Teilnehmer ({participants.length})
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="pt-4 pb-5">
                             <div className="flex flex-wrap gap-2">
                                 {participants.map((participant) => {
-                                    // participant ist jetzt ein Objekt!
-
-                                    const isInvolved = expenses.some(
-                                        (expense) =>
-                                            expense.paidBy === participant.id ||
-                                            expense.splitBetween.includes(participant.id)
-                                    );
-                                    // Vergleich mit ID wäre besser, aber user.name ist Email...
-                                    // Wir lassen das erstmal so für die Anzeige
+                                    const isInvolved = expenses.some(e => e.paidBy === participant.id || e.splitBetween.includes(participant.id));
                                     const isCurrentUser = user && participant.name === user.name;
-
                                     return (
-                                        <span
-                                            key={participant.id} // Wichtig: ID als Key
-                                            className={`px-3 py-1.5 rounded-full text-sm flex items-center gap-2 shadow-sm
-                                            ${isCurrentUser ? "bg-teal-700 text-white shadow-md" : "bg-[#e6fbf7] text-teal-900"}`}
-                                        >
-                                            <span
-                                                className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-semibold
-                                                ${isCurrentUser ? "bg-teal-700 text-white shadow-md" : "bg-[#e6fbf7] text-teal-900"}`}
-                                            >
-                                                {/* HIER WAR DER FEHLER: participant.name statt participant */}
+                                        <span key={participant.id} className={`px-3 py-1.5 rounded-full text-sm flex items-center gap-2 shadow-sm ${isCurrentUser ? "bg-teal-700 text-white shadow-md" : "bg-[#e6fbf7] text-teal-900"}`}>
+                                            <span className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-semibold ${isCurrentUser ? "bg-teal-700 text-white shadow-md" : "bg-[#e6fbf7] text-teal-900"}`}>
                                                 {participant.name.charAt(0).toUpperCase()}
                                             </span>
-
-                                            {/* Hier auch .name */}
                                             {participant.name}
-
                                             {isCurrentUser && <span className="text-xs opacity-90 ml-1">(Sie)</span>}
-
                                             {!isInvolved && !isCurrentUser && (
-                                                <button
-                                                    onClick={() => removeParticipant(participant.id)} // Hier ID übergeben
-                                                    className="ml-1 text-xs opacity-60 hover:opacity-100 hover:text-red-500"
-                                                >
-                                                    ✕
-                                                </button>
+                                                <button onClick={() => removeParticipant(participant.id)} className="ml-1 text-xs opacity-60 hover:opacity-100 hover:text-red-500">✕</button>
                                             )}
                                         </span>
                                     );
@@ -426,31 +363,33 @@ export default function App() {
                         </CardContent>
                     </Card>
 
-                    {/* ZUSAMMENFASSUNGS-KARTE */}
-                    <Card className="border-0 rounded-3xl shadow-md bg-white">
-                        <CardHeader className="border-b border-emerald-100 bg-white rounded-t-3xl pb-3">
-                            <CardTitle className="flex items-center gap-2 text-base font-semibold">
-                                <span className="inline-flex items-center justify-center w-7 h-7 rounded-xl bg-sky-100">
-                                    📊
-                                </span>
-                                Zusammenfassung
+                    {/* DASHBOARD */}
+                    <Card className="border-0 rounded-3xl shadow-md bg-white overflow-hidden">
+                        <CardHeader className="border-b border-slate-100 bg-white/50 pb-4">
+                            <CardTitle className="flex items-center gap-2 text-base font-semibold text-slate-800">
+                                <span className="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-emerald-100 text-emerald-600">💰</span>
+                                Finanzstatus
                             </CardTitle>
                         </CardHeader>
-                        <CardContent className="pt-4 pb-5">
-                            <div className="space-y-3">
-                                <div className="flex justify-between items-center px-4 py-3 rounded-xl bg-slate-50">
-                                    <span className="text-sm text-slate-600">Gesamtausgaben:</span>
-                                    <span className="font-semibold">
-                                        {totalExpenses.toFixed(2)} €
+                        <CardContent className="p-0">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
+                                <div className="flex flex-col items-center justify-center p-6 bg-white">
+                                    <span className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Gruppen-Total</span>
+                                    <div className="text-2xl font-bold text-slate-800">{totalExpenses.toFixed(2)} €</div>
+                                    <span className="text-xs text-slate-400 mt-1">Ø {costPerPerson.toFixed(2)} € / Person</span>
+                                </div>
+                                <div className="flex flex-col items-center justify-center p-6 bg-slate-50/30">
+                                    <span className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Du hast bezahlt</span>
+                                    <div className="text-xl font-semibold text-slate-600">{myTotalPaid.toFixed(2)} €</div>
+                                </div>
+                                <div className={`flex flex-col items-center justify-center p-6 ${myBalance >= 0 ? 'bg-emerald-50/60' : 'bg-rose-50/60'}`}>
+                                    <span className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Dein Saldo</span>
+                                    <div className={`text-2xl font-bold flex items-center gap-1 ${myBalance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                        {myBalance > 0 ? '+' : ''}{myBalance.toFixed(2)} €
+                                    </div>
+                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full mt-1 uppercase tracking-wide ${myBalance >= -0.01 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                                        {myBalance >= -0.01 ? 'Du bekommst Geld' : 'Du musst zahlen'}
                                     </span>
-                                </div>
-                                <div className="flex justify-between items-center px-4 py-3 rounded-xl bg-slate-50">
-                                    <span className="text-sm text-slate-600">Anzahl Ausgaben:</span>
-                                    <span className="font-semibold">{expenses.length}</span>
-                                </div>
-                                <div className="flex justify-between items-center px-4 py-3 rounded-xl bg-slate-50">
-                                    <span className="text-sm text-slate-600">Offene Schulden:</span>
-                                    <span className="font-semibold">{balances.length}</span>
                                 </div>
                             </div>
                         </CardContent>
@@ -458,19 +397,8 @@ export default function App() {
                 </div>
 
                 <div className="mb-6 flex items-center gap-3">
-                    <AddExpenseDialog
-                        groupId={parseInt(selectedGroup.id)}
-                        participants={participants}
-                        onExpenseAdded={handleExpenseAdded}
-                    />
-
-                    <Button
-                        variant="outline"
-                        className="gap-2 rounded-full border-2 border-dashed border-emerald-300 bg-white hover:bg-emerald-50 px-5 py-2 shadow-sm"
-                        onClick={() => {
-                            alert("OCR-Funktion kommt bald!");
-                        }}
-                    >
+                    <AddExpenseDialog groupId={parseInt(selectedGroup.id)} participants={participants} onExpenseAdded={handleExpenseAdded} />
+                    <Button variant="outline" className="gap-2 rounded-full border-2 border-dashed border-emerald-300 bg-white hover:bg-emerald-50 px-5 py-2 shadow-sm" onClick={() => alert("OCR-Funktion kommt bald!")}>
                         <Camera className="h-5 w-5 text-emerald-700" />
                         <span className="hidden sm:inline text-sm">Rechnung scannen</span>
                     </Button>
@@ -478,16 +406,9 @@ export default function App() {
 
                 <div className="grid gap-6 lg:grid-cols-2">
                     {isLoading ? (
-                        <div className="col-span-2 text-center py-10 text-slate-500">
-                            Lade Ausgaben...
-                        </div>
+                        <div className="col-span-2 text-center py-10 text-slate-500">Lade Ausgaben...</div>
                     ) : (
                         <>
-                            {/* WICHTIG: ExpenseList muss mit IDs umgehen können oder wir müssen sie anpassen.
-                                Für jetzt übergeben wir die expenses so wie sie sind.
-                                Da in paidBy jetzt "karl" steht, zeigt die Liste evtl. "karl" an.
-                                Das ist aber okay für den Moment.
-                            */}
                             <ExpenseList expenses={expenses} onDeleteExpense={deleteExpense} />
                             <BalanceOverview balances={balances} />
                         </>
