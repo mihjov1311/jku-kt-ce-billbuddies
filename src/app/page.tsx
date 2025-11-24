@@ -7,12 +7,13 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { AuthPage } from "@/components/AuthPage";
 import { GroupManagement } from "@/components/GroupManagement";
-import { AddExpenseDialog, Participant } from "@/components/AddExpenseDialog"
+import { AddExpenseDialog, Participant } from "@/components/AddExpenseDialog";
 import { ExpenseList } from "@/components/ExpenseList";
 import { BalanceOverview } from "@/components/BalanceOverview";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+// FIX: Plus importieren
 import { Button } from "@/components/ui/button";
-import { Receipt, LogOut, ArrowLeft, Camera } from "lucide-react";
+import { Receipt, LogOut, ArrowLeft, Camera, Plus } from "lucide-react";
 
 
 /**
@@ -27,6 +28,7 @@ interface Expense {
     paidBy: string;
     splitBetween: string[];
     date: Date;
+    foto?: string;
 }
 
 interface Balance {
@@ -54,6 +56,7 @@ interface OcrResult {
     amount: string;
     description: string;
     category?: string;
+    imageUrl?: string;
 }
 
 /**
@@ -83,7 +86,7 @@ export default function App() {
     // NEU: STATE FÜR OCR & DIALOG-SICHTBARKEIT
     const [ocrData, setOcrData] = useState<OcrResult | null>(null);
     const [isOcrProcessing, setIsOcrProcessing] = useState(false);
-    const [isDialogOpen, setIsDialogOpen] = useState(false); // KORREKTUR: Eigener State für den Dialog
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
 
     // --- 1. AUTHENTIFIZIERUNG & PROFIL LADEN ---
     useEffect(() => {
@@ -137,7 +140,8 @@ export default function App() {
 
             const { data, error } = await supabase
                 .from("ausgaben")
-                .select("*")
+                // Sicherstellen, dass die Spalte 'foto' hier ausgewählt wird
+                .select("*, foto")
                 .eq("gruppenid", groupIdInt)
                 .order("ausgabeid", { ascending: false });
 
@@ -149,9 +153,10 @@ export default function App() {
                     description: item.beschreibung,
                     amount: parseFloat(item.betrag),
                     category: item.kategorie,
-                    paidBy: item.benutzername,
+                    paidBy: item.benutzername, // Wichtig: Hier wird 'benutzername' verwendet
                     splitBetween: selectedGroup.members.map(m => m.id),
                     date: item.created_at ? new Date(item.created_at) : new Date(),
+                    foto: item.foto,
                 }));
                 setExpenses(mappedExpenses);
             }
@@ -295,12 +300,8 @@ export default function App() {
         setIsOcrProcessing(true);
 
         try {
-            // Optional: Komprimierung hier einfügen, falls gewünscht
-
             // 1. Datei in Base64 konvertieren (Frontend)
             const imageBase64WithPrefix = await fileToBase64(file);
-
-            // Base64-Präfix entfernen ("data:image/jpeg;base64,")
             const base64Data = imageBase64WithPrefix.split(',')[1];
 
             // 2. Base64 an den API-Endpunkt senden
@@ -328,9 +329,10 @@ export default function App() {
                 amount: data.amount,
                 description: data.description,
                 category: data.category,
+                imageUrl: data.imageUrl,
             });
 
-            // 4. KORREKTUR: Dialog öffnen
+            // 4. Dialog öffnen
             setIsDialogOpen(true);
 
         } catch (error: any) {
@@ -379,6 +381,7 @@ export default function App() {
     return (
         <div className="min-h-screen bg-[#f3faf8]">
             {/* HEADER */}
+            {/* ... (Header-Code bleibt unverändert) ... */}
             <div className="bg-teal-700 text-white shadow-md">
                 <div className="mx-auto w-full max-w-6xl px-6 py-4">
                     <div className="flex items-center justify-between">
@@ -418,6 +421,7 @@ export default function App() {
             <div className="container mx-auto py-8 px-4 max-w-6xl">
                 <div className="grid gap-6 md:grid-cols-2 mb-6">
                     {/* TEILNEHMER */}
+                    {/* ... (Teilnehmer-Card-Code bleibt unverändert) ... */}
                     <Card className="border-0 rounded-3xl shadow-md bg-white">
                         <CardHeader className="border-b border-emerald-100 bg-white rounded-t-3xl pb-3">
                             <CardTitle className="flex items-center gap-2 text-base font-semibold">
@@ -449,6 +453,7 @@ export default function App() {
 
 
                     {/* DASHBOARD */}
+                    {/* ... (Dashboard-Card-Code bleibt unverändert) ... */}
                     <Card className="border-0 rounded-3xl shadow-md bg-white overflow-hidden">
                         <CardHeader className="border-b border-slate-100 bg-white/50 pb-4">
                             <CardTitle className="flex items-center gap-2 text-base font-semibold text-slate-800">
@@ -481,31 +486,21 @@ export default function App() {
                     </Card>
                 </div>
 
-                {/* AKTIONEN */}
-                <div className="mb-6 flex items-center gap-3">
-                    {/* ANGEPASSTER ADDEXPENSEDIALOG */}
-                    <AddExpenseDialog
-                        groupId={parseInt(selectedGroup.id)}
-                        participants={participants}
-                        onExpenseAdded={() => {
-                            handleExpenseAdded();
-                            setIsDialogOpen(false); // Dialog nach Speichern schließen
+                {/* AKTIONEN (FIX: Manuelle und Scan-Buttons sind jetzt beide sichtbar) */}
+                <div className="mb-6 flex flex-wrap items-center gap-3">
+
+                    {/* 1. MANUELLER BUTTON (FIX: Erscheint wieder und setzt OCR-Daten zurück) */}
+                    <Button
+                        onClick={() => {
+                            setOcrData(null); // WICHTIG: Setzt OCR-Daten zurück, bevor der Dialog geöffnet wird
+                            setIsDialogOpen(true);
                         }}
-                        initialAmount={ocrData?.amount}
-                        initialDescription={ocrData?.description}
-                        initialCategory={ocrData?.category}
+                        className="rounded-full bg-emerald-600 hover:bg-emerald-700 text-white shadow-md"
+                    >
+                        <Plus className="w-5 h-5 mr-1" /> Ausgabe
+                    </Button>
 
-                        // KORREKTUR: Gesteuert durch eigenen State
-                        open={isDialogOpen}
-                        onOpenChange={(newOpenState) => {
-                            setIsDialogOpen(newOpenState);
-                            if (!newOpenState) setOcrData(null); // Daten beim Schließen löschen
-                        }}
-
-                        currentUserDbId={currentUserDbId}
-                    />
-
-                    {/* ANGEPASSTER RECHNUNG-SCANNEN-BUTTON */}
+                    {/* 2. RECHNUNG SCANNEN BUTTON */}
                     <label
                         htmlFor="receipt-upload"
                         className={`inline-flex items-center justify-center gap-2 rounded-full bg-teal-700 text-white shadow-md transition-all h-10 px-4 py-2 text-sm font-medium ${
@@ -514,9 +509,7 @@ export default function App() {
                                 : 'hover:bg-teal-800 hover:shadow-lg cursor-pointer'
                         }`}
                     >
-                        {/* Icon hat jetzt keine eigene Farbe mehr, da es Weiß vom Button erbt */}
                         <Camera className="h-4 w-4"/>
-
                         <span className="hidden sm:inline">
                             {isOcrProcessing ? "Verarbeite..." : "Rechnung scannen"}
                         </span>
@@ -528,6 +521,29 @@ export default function App() {
                         className="hidden"
                         onChange={handleScanReceipt}
                         disabled={isOcrProcessing}
+                    />
+
+                    {/* 3. DER DIALOG (Steuerung über isDialogOpen) */}
+                    <AddExpenseDialog
+                        groupId={parseInt(selectedGroup.id)}
+                        participants={participants}
+                        onExpenseAdded={() => {
+                            handleExpenseAdded();
+                            // setOcrData(null); -> Ist jetzt in onOpenChange
+                        }}
+                        initialAmount={ocrData?.amount}
+                        initialDescription={ocrData?.description}
+                        initialCategory={ocrData?.category}
+                        initialImage={ocrData?.imageUrl}
+
+                        open={isDialogOpen}
+                        onOpenChange={(newOpenState) => {
+                            setIsDialogOpen(newOpenState);
+                            // WICHTIG: Setzt OCR-Daten zurück, wenn der Dialog geschlossen wird (egal ob gespeichert oder abgebrochen)
+                            if (!newOpenState) setOcrData(null);
+                        }}
+
+                        currentUserDbId={currentUserDbId}
                     />
                 </div>
 

@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -6,8 +8,7 @@ import {
     DialogContent,
     DialogDescription,
     DialogHeader,
-    DialogTitle,
-    DialogTrigger
+    DialogTitle
 } from "@/components/ui/dialog";
 
 import { Button } from "@/components/ui/button";
@@ -21,12 +22,12 @@ import {
     SelectValue
 } from "@/components/ui/select";
 
-import { Plus, Users } from "lucide-react";
+import { Plus, Users, Loader2, Image as ImageIcon } from "lucide-react"; // Icons aktualisiert
 
-// --- WIE EIN TEILNEHMER AUSSIEHT ---
+// --- INTERFACES ---
 export interface Participant {
-    id: string;    // Der Benutzername für die Datenbank (z.B. "karl")
-    name: string;  // Der Anzeigename für die UI (z.B. "Karl Hauser")
+    id: string;
+    name: string;
 }
 
 interface AddExpenseDialogProps {
@@ -38,11 +39,12 @@ interface AddExpenseDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
 
-    // Initialwerte von OCR
+    // Initialwerte von OCR (Hinzugefügt/Aktualisiert)
     initialDescription?: string;
     initialAmount?: string;
     initialCategory?: string;
-    currentUserDbId: string;   // ID des aktuell angemeldeten Benutzers
+    initialImage?: string; // NEU: Für das Foto
+    currentUserDbId: string;
 }
 
 export function AddExpenseDialog({
@@ -54,6 +56,7 @@ export function AddExpenseDialog({
                                      initialDescription = "",
                                      initialAmount = "",
                                      initialCategory = "",
+                                     initialImage, // Hier initialImage übernehmen
                                      currentUserDbId
                                  }: AddExpenseDialogProps) {
 
@@ -64,15 +67,15 @@ export function AddExpenseDialog({
     const [paidBy, setPaidBy] = useState("");
     const [isSaving, setIsSaving] = useState(false);
 
-    // useEffect: Füllt Felder, wenn der Dialog geöffnet wird (egal ob manuell oder OCR)
+    // useEffect: Füllt Felder, wenn der Dialog geöffnet wird (OCR-Daten laden oder Formular leeren)
     useEffect(() => {
         if (open) {
-            // Wenn Werte übergeben wurden (OCR), nutze sie. Sonst leer (manuell).
-            setDescription(initialDescription);
-            setAmount(initialAmount);
-            setCategory(initialCategory);
+            // Beim Öffnen mit OCR-Daten befüllen (wenn vorhanden)
+            setDescription(initialDescription || "");
+            setAmount(initialAmount || "");
+            setCategory(initialCategory || "");
 
-            // Wähle den aktuellen Benutzer vor, wenn paidBy noch leer ist
+            // Setzt den Zahler auf den aktuellen User
             setPaidBy(currentUserDbId);
         } else {
             // State beim Schließen zurücksetzen
@@ -91,14 +94,17 @@ export function AddExpenseDialog({
             return;
         }
 
+        const cleanAmount = amount.replace(",", ".");
+        const amountFloat = parseFloat(cleanAmount);
+
+        if (isNaN(amountFloat)) {
+            alert("Ungültiger Betrag.");
+            return;
+        }
+
         setIsSaving(true);
 
         try {
-            const cleanAmount = amount.replace(",", ".");
-            const amountFloat = parseFloat(cleanAmount);
-
-            if (isNaN(amountFloat)) throw new Error("Bitte einen gültigen Betrag eingeben.");
-
             const { error } = await supabase
                 .from("ausgaben")
                 .insert({
@@ -106,7 +112,8 @@ export function AddExpenseDialog({
                     benutzername: paidBy,
                     betrag: amountFloat,
                     beschreibung: description,
-                    kategorie: category || "Sonstiges"
+                    kategorie: category || "Sonstiges",
+                    foto: initialImage || null // FOTO-URL HINZUGEFÜGT
                 });
 
             if (error) throw error;
@@ -124,14 +131,9 @@ export function AddExpenseDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            {/* KORREKTUR: Der Trigger ist jetzt IMMER sichtbar */}
-            <DialogTrigger asChild>
-                <Button className="gap-2 rounded-full bg-teal-700 hover:bg-teal-800 text-white shadow-md hover:shadow-lg transition-shadow">
-                    <Plus className="h-4 w-4" />
-                    <span className="text-sm">Ausgabe hinzufügen</span>
-                </Button>
-            </DialogTrigger>
+            {/* HINWEIS: DialogTrigger entfernt, da die Steuerung extern erfolgt (z.B. durch den Scan-Button) */}
 
+            {/* STYLING WIE GEWÜNSCHT */}
             <DialogContent className="sm:max-w-[500px] bg-slate-50 rounded-3xl">
                 <DialogHeader className="pb-4 border-b border-slate-200">
                     <DialogTitle className="flex items-center gap-2 text-lg font-semibold">
@@ -146,6 +148,23 @@ export function AddExpenseDialog({
                 </DialogHeader>
 
                 <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+
+                    {/* NEU: Foto Hinweis, nur sichtbar, wenn ein Bild von OCR übergeben wurde */}
+                    {initialImage && (
+                        <div className="flex items-center gap-2 p-3 rounded-xl bg-white border border-slate-200 shadow-sm text-sm">
+                            <ImageIcon className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+                            <span className="text-slate-700 font-medium">Rechnungsfoto angehängt</span>
+                            <a
+                                href={initialImage}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="ml-auto text-xs text-emerald-600 underline hover:no-underline"
+                            >
+                                Ansehen
+                            </a>
+                        </div>
+                    )}
+
                     {/* BESCHREIBUNG */}
                     <div className="space-y-1.5">
                         <Label htmlFor="description">Beschreibung</Label>
@@ -204,17 +223,17 @@ export function AddExpenseDialog({
                             <SelectContent className="bg-white border border-slate-200 shadow-lg rounded-xl">
                                 {participants.map((participant) => (
                                     <SelectItem key={participant.id} value={participant.id}>
-                                        {participant.name}
+                                        {participant.name} {participant.id === currentUserDbId ? "(Du)" : ""}
                                     </SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
                     </div>
 
-                    {/* INFO BOX */}
+                    {/* INFO BOX: Aufteilung */}
                     <div className="space-y-1.5">
                         <Label>Aufgeteilt zwischen</Label>
-                        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-slate-200 text-sm">
+                        <div className="flex items-center gap-3 px-3 py-2 rounded-xl bg-white border border-slate-200 text-sm shadow-sm">
                             <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700">
                                 <Users className="h-3 w-3" />
                             </span>
@@ -224,13 +243,27 @@ export function AddExpenseDialog({
                         </div>
                     </div>
 
-                    <div className="pt-2">
+                    {/* BUTTONS */}
+                    <div className="pt-4 flex justify-end gap-3">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => onOpenChange(false)}
+                            className="rounded-xl border-slate-300 text-slate-700 hover:bg-slate-100"
+                        >
+                            Abbrechen
+                        </Button>
+
                         <Button
                             type="submit"
                             disabled={isSaving}
-                            className="w-full rounded-xl bg-emerald-600 text-white font-semibold py-2.5 hover:bg-emerald-700 disabled:opacity-50"
+                            className="rounded-xl bg-emerald-600 text-white font-semibold py-2.5 hover:bg-emerald-700 disabled:opacity-50"
                         >
-                            {isSaving ? "Wird gespeichert..." : "Ausgabe speichern"}
+                            {isSaving ? (
+                                <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Wird gespeichert...</>
+                            ) : (
+                                "Ausgabe speichern"
+                            )}
                         </Button>
                     </div>
                 </form>
