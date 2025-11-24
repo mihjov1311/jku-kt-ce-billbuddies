@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Receipt, LogOut, ArrowLeft, Camera } from "lucide-react";
 
+
 /**
  * TYPESCRIPT INTERFACES
  */
@@ -37,7 +38,7 @@ interface Balance {
 interface User {
     name: string;
     email?: string;
-    dbId?: string; // NEU: Die echte Benutzer-ID aus der Datenbank
+    dbId?: string; // Die echte Benutzer-ID aus der Datenbank
 }
 
 interface Group {
@@ -47,6 +48,26 @@ interface Group {
     memberCount: number;
     members: Participant[];
 }
+
+// Interface für die Rückgabe der OCR-API
+interface OcrResult {
+    amount: string;
+    description: string;
+    category?: string;
+}
+
+/**
+ * HELFERFUNKTION: Datei zu Base64 konvertieren (für den API-Call)
+ */
+const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = error => reject(error);
+    });
+};
+
 
 /**
  * HAUPTKOMPONENTE
@@ -59,11 +80,15 @@ export default function App() {
     const [expenses, setExpenses] = useState<Expense[]>([]);
     const [isLoading, setIsLoading] = useState(false);
 
+    // NEU: STATE FÜR OCR & DIALOG-SICHTBARKEIT
+    const [ocrData, setOcrData] = useState<OcrResult | null>(null);
+    const [isOcrProcessing, setIsOcrProcessing] = useState(false);
+    const [isDialogOpen, setIsDialogOpen] = useState(false); // KORREKTUR: Eigener State für den Dialog
+
     // --- 1. AUTHENTIFIZIERUNG & PROFIL LADEN ---
     useEffect(() => {
         const getUserProfile = async (session: any) => {
             if (session?.user) {
-                // Wir laden den echten Benutzernamen aus der Tabelle 'mitglieder'
                 const { data: profile } = await supabase
                     .from('mitglieder')
                     .select('benutzername')
@@ -73,7 +98,7 @@ export default function App() {
                 setUser({
                     name: session.user.email || "Benutzer",
                     email: session.user.email,
-                    dbId: profile?.benutzername // Hier speichern wir z.B. "luma06"
+                    dbId: profile?.benutzername
                 });
             }
         };
@@ -104,7 +129,6 @@ export default function App() {
     // --- 2. DATEN LADEN ---
     const fetchExpenses = useCallback(async () => {
         if (!selectedGroup) return;
-
         setIsLoading(true);
         console.log("Lade Daten für Gruppe:", selectedGroup.id);
 
@@ -123,7 +147,7 @@ export default function App() {
                 const mappedExpenses: Expense[] = data.map((item: any) => ({
                     id: item.ausgabeid.toString(),
                     description: item.beschreibung,
-                    amount: parseFloat(item.betrag), // Wichtig: Text zu Zahl
+                    amount: parseFloat(item.betrag),
                     category: item.kategorie,
                     paidBy: item.benutzername,
                     splitBetween: selectedGroup.members.map(m => m.id),
@@ -257,6 +281,68 @@ export default function App() {
         setSelectedGroup(null);
     };
 
+    // --- OCR SCAN LOGIK ---
+    const handleScanReceipt = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (!file.type.match('image.*')) {
+            alert("Bitte wählen Sie ein Bild (JPEG, PNG) aus.");
+            e.target.value = '';
+            return;
+        }
+
+        setIsOcrProcessing(true);
+
+        try {
+            // Optional: Komprimierung hier einfügen, falls gewünscht
+
+            // 1. Datei in Base64 konvertieren (Frontend)
+            const imageBase64WithPrefix = await fileToBase64(file);
+
+            // Base64-Präfix entfernen ("data:image/jpeg;base64,")
+            const base64Data = imageBase64WithPrefix.split(',')[1];
+
+            // 2. Base64 an den API-Endpunkt senden
+            const response = await fetch('/api/ocr', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ imageBase64: base64Data }),
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Serverfehler (${response.status}). ${errorText.substring(0, 100)}`);
+            }
+
+            const data = await response.json();
+
+            if (!data.success) {
+                throw new Error(data.message || 'Fehler bei der OCR-Verarbeitung.');
+            }
+
+            // 3. OCR-Daten speichern
+            setOcrData({
+                amount: data.amount,
+                description: data.description,
+                category: data.category,
+            });
+
+            // 4. KORREKTUR: Dialog öffnen
+            setIsDialogOpen(true);
+
+        } catch (error: any) {
+            console.error("Fehler beim Scannen:", error);
+            alert("Fehler beim Scannen der Rechnung: " + error.message);
+        } finally {
+            setIsOcrProcessing(false);
+            e.target.value = ''; // Input zurücksetzen
+        }
+    };
+
+
     // --- RENDER CHECKS ---
     if (!user) {
         return <AuthPage onLogin={() => {}} />;
@@ -272,25 +358,23 @@ export default function App() {
         );
     }
 
-    // --- BERECHNUNGEN FÜR DAS DASHBOARD (Hier war der Fehler!) ---
-
-    // 1. Gesamtsumme
+    // --- BERECHNUNGEN FÜR DAS DASHBOARD ---
     const totalExpenses = expenses.reduce((sum, expense) => {
         return sum + (Number(expense.amount) || 0);
     }, 0);
 
-    // 2. Dein Beitrag (Wir vergleichen jetzt mit user.dbId)
     const myTotalPaid = expenses
         .filter(e => e.paidBy === user?.dbId)
         .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
 
-    // 3. Kosten pro Kopf
     const costPerPerson = participants.length > 0 ? totalExpenses / participants.length : 0;
 
-    // 4. Dein Saldo
     const myBalance = myTotalPaid - costPerPerson;
 
     const balances = calculateBalances();
+
+    const currentUserDbId = user.dbId || "";
+
 
     return (
         <div className="min-h-screen bg-[#f3faf8]">
@@ -363,6 +447,7 @@ export default function App() {
                         </CardContent>
                     </Card>
 
+
                     {/* DASHBOARD */}
                     <Card className="border-0 rounded-3xl shadow-md bg-white overflow-hidden">
                         <CardHeader className="border-b border-slate-100 bg-white/50 pb-4">
@@ -396,12 +481,54 @@ export default function App() {
                     </Card>
                 </div>
 
+                {/* AKTIONEN */}
                 <div className="mb-6 flex items-center gap-3">
-                    <AddExpenseDialog groupId={parseInt(selectedGroup.id)} participants={participants} onExpenseAdded={handleExpenseAdded} />
-                    <Button variant="outline" className="gap-2 rounded-full border-2 border-dashed border-emerald-300 bg-white hover:bg-emerald-50 px-5 py-2 shadow-sm" onClick={() => alert("OCR-Funktion kommt bald!")}>
-                        <Camera className="h-5 w-5 text-emerald-700" />
-                        <span className="hidden sm:inline text-sm">Rechnung scannen</span>
-                    </Button>
+                    {/* ANGEPASSTER ADDEXPENSEDIALOG */}
+                    <AddExpenseDialog
+                        groupId={parseInt(selectedGroup.id)}
+                        participants={participants}
+                        onExpenseAdded={() => {
+                            handleExpenseAdded();
+                            setIsDialogOpen(false); // Dialog nach Speichern schließen
+                        }}
+                        initialAmount={ocrData?.amount}
+                        initialDescription={ocrData?.description}
+                        initialCategory={ocrData?.category}
+
+                        // KORREKTUR: Gesteuert durch eigenen State
+                        open={isDialogOpen}
+                        onOpenChange={(newOpenState) => {
+                            setIsDialogOpen(newOpenState);
+                            if (!newOpenState) setOcrData(null); // Daten beim Schließen löschen
+                        }}
+
+                        currentUserDbId={currentUserDbId}
+                    />
+
+                    {/* ANGEPASSTER RECHNUNG-SCANNEN-BUTTON */}
+                    <label
+                        htmlFor="receipt-upload"
+                        className={`inline-flex items-center justify-center gap-2 rounded-full bg-teal-700 text-white shadow-md transition-all h-10 px-4 py-2 text-sm font-medium ${
+                            isOcrProcessing
+                                ? 'opacity-50 cursor-not-allowed'
+                                : 'hover:bg-teal-800 hover:shadow-lg cursor-pointer'
+                        }`}
+                    >
+                        {/* Icon hat jetzt keine eigene Farbe mehr, da es Weiß vom Button erbt */}
+                        <Camera className="h-4 w-4"/>
+
+                        <span className="hidden sm:inline">
+                            {isOcrProcessing ? "Verarbeite..." : "Rechnung scannen"}
+                        </span>
+                    </label>
+                    <input
+                        id="receipt-upload"
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleScanReceipt}
+                        disabled={isOcrProcessing}
+                    />
                 </div>
 
                 <div className="grid gap-6 lg:grid-cols-2">
@@ -409,8 +536,8 @@ export default function App() {
                         <div className="col-span-2 text-center py-10 text-slate-500">Lade Ausgaben...</div>
                     ) : (
                         <>
-                            <ExpenseList expenses={expenses} onDeleteExpense={deleteExpense} />
-                            <BalanceOverview balances={balances} />
+                            <ExpenseList expenses={expenses} onDeleteExpense={deleteExpense}/>
+                            <BalanceOverview balances={balances}/>
                         </>
                     )}
                 </div>

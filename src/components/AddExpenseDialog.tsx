@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
 import {
@@ -23,7 +23,7 @@ import {
 
 import { Plus, Users } from "lucide-react";
 
-// --- NEU: Wir definieren, wie ein Teilnehmer aussieht ---
+// --- WIE EIN TEILNEHMER AUSSIEHT ---
 export interface Participant {
     id: string;    // Der Benutzername für die Datenbank (z.B. "karl")
     name: string;  // Der Anzeigename für die UI (z.B. "Karl Hauser")
@@ -31,19 +31,57 @@ export interface Participant {
 
 interface AddExpenseDialogProps {
     groupId: number;
-    participants: Participant[]; // NEU: Wir erwarten jetzt Objekte, keine Strings mehr!
+    participants: Participant[];
     onExpenseAdded: () => void;
+
+    // Externe Steuerung
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+
+    // Initialwerte von OCR
+    initialDescription?: string;
+    initialAmount?: string;
+    initialCategory?: string;
+    currentUserDbId: string;   // ID des aktuell angemeldeten Benutzers
 }
 
-export function AddExpenseDialog({ groupId, participants, onExpenseAdded }: AddExpenseDialogProps) {
-    const [open, setOpen] = useState(false);
+export function AddExpenseDialog({
+                                     groupId,
+                                     participants,
+                                     onExpenseAdded,
+                                     open,
+                                     onOpenChange,
+                                     initialDescription = "",
+                                     initialAmount = "",
+                                     initialCategory = "",
+                                     currentUserDbId
+                                 }: AddExpenseDialogProps) {
 
+    // Zustand für Formularfelder
     const [description, setDescription] = useState("");
     const [amount, setAmount] = useState("");
     const [category, setCategory] = useState("");
-    const [paidBy, setPaidBy] = useState(""); // Hier wird die ID ("karl") gespeichert
-
+    const [paidBy, setPaidBy] = useState("");
     const [isSaving, setIsSaving] = useState(false);
+
+    // useEffect: Füllt Felder, wenn der Dialog geöffnet wird (egal ob manuell oder OCR)
+    useEffect(() => {
+        if (open) {
+            // Wenn Werte übergeben wurden (OCR), nutze sie. Sonst leer (manuell).
+            setDescription(initialDescription);
+            setAmount(initialAmount);
+            setCategory(initialCategory);
+
+            // Wähle den aktuellen Benutzer vor, wenn paidBy noch leer ist
+            setPaidBy(currentUserDbId);
+        } else {
+            // State beim Schließen zurücksetzen
+            setDescription("");
+            setAmount("");
+            setCategory("");
+            setPaidBy("");
+        }
+    }, [open, initialDescription, initialAmount, initialCategory, currentUserDbId]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -61,13 +99,11 @@ export function AddExpenseDialog({ groupId, participants, onExpenseAdded }: AddE
 
             if (isNaN(amountFloat)) throw new Error("Bitte einen gültigen Betrag eingeben.");
 
-            // Hier senden wir 'paidBy'. Das ist jetzt die ID (z.B. "karl"),
-            // weil wir das unten im Select so eingestellt haben.
             const { error } = await supabase
                 .from("ausgaben")
                 .insert({
                     gruppenid: groupId,
-                    benutzername: paidBy, // Sendet "karl" an die DB
+                    benutzername: paidBy,
                     betrag: amountFloat,
                     beschreibung: description,
                     kategorie: category || "Sonstiges"
@@ -75,12 +111,7 @@ export function AddExpenseDialog({ groupId, participants, onExpenseAdded }: AddE
 
             if (error) throw error;
 
-            setDescription("");
-            setAmount("");
-            setCategory("");
-            setPaidBy("");
-            setOpen(false);
-
+            onOpenChange(false); // Schließt den Dialog
             onExpenseAdded();
 
         } catch (error: any) {
@@ -92,7 +123,8 @@ export function AddExpenseDialog({ groupId, participants, onExpenseAdded }: AddE
     };
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            {/* KORREKTUR: Der Trigger ist jetzt IMMER sichtbar */}
             <DialogTrigger asChild>
                 <Button className="gap-2 rounded-full bg-teal-700 hover:bg-teal-800 text-white shadow-md hover:shadow-lg transition-shadow">
                     <Plus className="h-4 w-4" />
@@ -150,26 +182,27 @@ export function AddExpenseDialog({ groupId, participants, onExpenseAdded }: AddE
                                 <SelectValue placeholder="Kategorie auswählen" />
                             </SelectTrigger>
                             <SelectContent className="bg-white border border-slate-200 shadow-lg rounded-xl">
+                                <SelectItem value="Supermarkt & Lebensmittel">🛒 Supermarkt & Lebensmittel</SelectItem>
                                 <SelectItem value="Essen & Trinken">🍽️ Essen &amp; Trinken</SelectItem>
                                 <SelectItem value="Transport">🚗 Transport</SelectItem>
                                 <SelectItem value="Unterkunft">🏠 Unterkunft</SelectItem>
-                                <SelectItem value="Einkaufen">🛒 Einkaufen</SelectItem>
+                                <SelectItem value="Einkaufen">🛍️ Einkaufen</SelectItem>
+                                <SelectItem value="Drogerie & Apotheke">💊 Drogerie & Apotheke</SelectItem>
+                                <SelectItem value="Tanken & Auto">⛽ Tanken & Auto</SelectItem>
                                 <SelectItem value="Sonstiges">📦 Sonstiges</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
 
-                    {/* BEZAHLT VON - HIER IST DIE ÄNDERUNG */}
+                    {/* BEZAHLT VON */}
                     <div className="space-y-1.5">
                         <Label htmlFor="paidBy">Bezahlt von</Label>
-                        <Select value={paidBy} onValueChange={setPaidBy}>
+                        <Select value={paidBy} onValueChange={setPaidBy} required>
                             <SelectTrigger className="bg-white border border-slate-200 focus:border-emerald-400 focus:ring-emerald-300 rounded-xl shadow-sm">
                                 <SelectValue placeholder="Person auswählen" />
                             </SelectTrigger>
                             <SelectContent className="bg-white border border-slate-200 shadow-lg rounded-xl">
                                 {participants.map((participant) => (
-                                    // VALUE = ID ("karl")
-                                    // ANZEIGE = NAME ("Karl Hauser")
                                     <SelectItem key={participant.id} value={participant.id}>
                                         {participant.name}
                                     </SelectItem>
