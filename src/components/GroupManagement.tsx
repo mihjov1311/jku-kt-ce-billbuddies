@@ -85,7 +85,7 @@ export function GroupManagement({ userName, onSelectGroup, onLogout }: GroupMana
                     const { data: memberList, error: memberListError } = await supabase
                         .from("gruppenmitglieder")
                         .select(`
-                benutzername, 
+                benutzername,
                 mitglieder (
                   vorname,
                   nachname
