@@ -507,7 +507,7 @@ export default function App() {
                                             {participant.name}
                                             {isCurrentUser && <span className="text-xs opacity-90 ml-1">(Sie)</span>}
                                             {!isInvolved && !isCurrentUser && (
-                                                <button onClick={() => removeParticipantFromGroup(participant.id)} className="ml-1 text-xs opacity-60 hover:opacity-100 hover:text-red-500">✕</button>
+                                                <button onClick={() => removeParticipantFromGroup(participant.id, participant.name)} className="ml-1 text-xs opacity-60 hover:opacity-100 hover:text-red-500">✕</button>
                                             )}
                                         </span>
                                     );
