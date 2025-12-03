@@ -174,15 +174,42 @@ export default function App() {
     }, [selectedGroup, fetchExpenses]);
 
     // --- TEILNEHMER ENTFERNEN (UI) ---
-    const removeParticipant = (idToRemove: string) => {
+    const removeParticipantFromGroup = async (participantIdToRemove: string, participantName: string) => {
+        if (!selectedGroup || !user) return;
+
+        // Verhinderung der Selbst-Löschung über diesen Button
+        if (participantIdToRemove === user.dbId) {
+            alert("Um sich selbst zu entfernen, nutzen Sie bitte den 'Gruppe verlassen' Button.");
+            return;
+        }
+
+        // 1. Warnung bei Beteiligung an Ausgaben (bleibt erhalten)
         const isInvolved = expenses.some(
             (expense) =>
-                expense.paidBy === idToRemove ||
-                expense.splitBetween.includes(idToRemove)
+                expense.paidBy === participantIdToRemove ||
+                expense.splitBetween.includes(participantIdToRemove)
         );
 
-        if (!isInvolved) {
-            setParticipants(participants.filter((p) => p.id !== idToRemove));
+        let confirmMessage = `Möchten Sie den Teilnehmer ${participantName} wirklich aus der Gruppe entfernen?`;
+        if (isInvolved) {
+            confirmMessage += "\n\nACHTUNG: Dieses Mitglied ist an Ausgaben beteiligt. Die Rechnungen bleiben erhalten, aber die Salden werden in der Gruppe unkorrekt, bis die Ausgaben angepasst oder gelöscht wurden.";
+        }
+
+        if (!confirm(confirmMessage)) return;
+
+        // 2. Datenbank-Löschung
+        const { error } = await supabase
+            .from("gruppenmitglieder")
+            .delete()
+            .eq("gruppenid", selectedGroup.id)
+            .eq("benutzername", participantIdToRemove);
+
+        if (error) {
+            alert("Fehler beim Entfernen des Mitglieds: " + error.message);
+        } else {
+            // 3. UI und Daten neu laden
+            setParticipants(prev => prev.filter(p => p.id !== participantIdToRemove));
+            fetchExpenses();
         }
     };
 
@@ -377,6 +404,30 @@ export default function App() {
 
     const currentUserDbId = user.dbId || "";
 
+    // --- GRUPPE VERLASSEN ---
+      const leaveGroup = async () => {
+        if (!selectedGroup || !user) return;
+
+        // 1. Sicherheitsabfrage
+        if (!confirm("Möchten Sie diese Gruppe wirklich verlassen?")) return;
+
+        // 2. Datenbank-Löschung (DELETE)
+        const { error } = await supabase
+          .from("gruppenmitglieder")
+          .delete()
+          .eq("gruppenid", selectedGroup.id)
+          .eq("benutzername", user.dbId); // Wichtig: Wir nutzen user.dbId (den Benutzernamen)
+
+        if (error) {
+          alert("Fehler beim Verlassen: " + error.message);
+        } else {
+          // 3. Zurück zur Gruppenübersicht
+          setSelectedGroup(null);
+          setExpenses([]);
+        }
+      };
+
+
 
     return (
         <div className="min-h-screen bg-[#f3faf8]">
@@ -424,10 +475,24 @@ export default function App() {
                     {/* ... (Teilnehmer-Card-Code bleibt unverändert) ... */}
                     <Card className="border-0 rounded-3xl shadow-md bg-white">
                         <CardHeader className="border-b border-emerald-100 bg-white rounded-t-3xl pb-3">
-                            <CardTitle className="flex items-center gap-2 text-base font-semibold">
-                                <span className="inline-flex items-center justify-center w-7 h-7 rounded-xl bg-purple-100 text-purple-700">👥</span>
-                                Teilnehmer ({participants.length})
-                            </CardTitle>
+                            <div className="flex justify-between items-center">
+                                {/* 1. LINKS: Titel (Teilnehmer) */}
+                                <CardTitle className="flex items-center gap-2 text-base font-semibold">
+                                    <span className="inline-flex items-center justify-center w-7 h-7 rounded-xl bg-purple-100 text-purple-700">👥</span>
+                                    Teilnehmer ({participants.length})
+                                </CardTitle>
+
+                                {/* 2. RECHTS: Gruppe verlassen Button (kleiner und weniger prominent) */}
+                                <Button
+                                    variant="ghost" // Weniger prominente, transparente Darstellung
+                                    size="sm"       // Etwas kleiner (kleinerer Padding)
+                                    onClick={leaveGroup}
+                                    className="text-rose-600 hover:bg-rose-50/70 hover:text-rose-700 font-semibold gap-1"
+                                >
+                                    <LogOut className="h-3 w-3" /> {/* Kleineres Icon (h-3 w-3) */}
+                                    Verlassen
+                                </Button>
+                            </div>
                         </CardHeader>
                         <CardContent className="pt-4 pb-5">
                             <div className="flex flex-wrap gap-2">
@@ -442,7 +507,7 @@ export default function App() {
                                             {participant.name}
                                             {isCurrentUser && <span className="text-xs opacity-90 ml-1">(Sie)</span>}
                                             {!isInvolved && !isCurrentUser && (
-                                                <button onClick={() => removeParticipant(participant.id)} className="ml-1 text-xs opacity-60 hover:opacity-100 hover:text-red-500">✕</button>
+                                                <button onClick={() => removeParticipantFromGroup(participant.id)} className="ml-1 text-xs opacity-60 hover:opacity-100 hover:text-red-500">✕</button>
                                             )}
                                         </span>
                                     );
