@@ -20,6 +20,7 @@ import { Receipt, LogOut, ArrowLeft, Camera, Plus } from "lucide-react";
  * TYPESCRIPT INTERFACES
  */
 
+//Inteface für die Ausgabe
 interface Expense {
     id: string;
     description: string;
@@ -31,6 +32,7 @@ interface Expense {
     foto?: string;
 }
 
+//Inteface für den "Kontostand"
 interface Balance {
     from: string;
     to: string;
