@@ -237,10 +237,10 @@ export default function App() {
         }
     };
 
-    // --- BERECHNUNG DER SCHULDEN ---
+    // Berechnung der Schulden - Mit Unterstützung von Chatgpt
     const calculateBalances = (): Balance[] => {
-        const balances: Record<string, number> = {};
         //für jeden Tn wird ein Saldo erstellt
+        const balances: Record<string, number> = {};
         participants.forEach((p) => { balances[p.id] = 0; });
 
         //jede Ausgabe wird durchgegangen
@@ -252,10 +252,10 @@ export default function App() {
 
             if(validSplitIds.length === 0) return;
 
-            //der Anteil wird berechnet also allgemein
+            //der Anteil wird berechnet also pro person
             const shareAmount = expense.amount / validSplitIds.length;
 
-            //Der was bezahlt hat bekommt es gut geschrieben
+            //Der was bezahlt hat bekommt es gut geschrieben -> ganzer Betrag
             if (balances[expense.paidBy] !== undefined) {
                 balances[expense.paidBy] += expense.amount;
             }
@@ -279,9 +279,12 @@ export default function App() {
         let i = 0;
         let j = 0;
         //Vergleich von Schuldner und Gläubiger - entweder Schuldner zahlt alles was er schuldet oder alles, was der Gläubiger bekommen soll je nachdem was kleiner ist
+        //so wird verhindert, dass keiner zu viel zahlt
         while (i < debtors.length && j < creditors.length) {
             const [debtorId, debtAmount] = debtors[i];
             const [creditorId, creditAmount] = creditors[j];
+            //-debtAmount macht es positiv also die Schulden
+            //creditamount sind das Guthaben vom anderen
             const amount = Math.min(-debtAmount, creditAmount);
 
             if (amount > 0.01) {
