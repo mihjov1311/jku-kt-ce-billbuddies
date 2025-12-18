@@ -9,6 +9,10 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    # Berechtigungen hinzufügen, damit die Action Kommentare schreiben darf
+    permissions:
+      pull-requests: write
+      contents: read
 
     steps:
       - name: Checkout code
@@ -28,7 +32,31 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: npm test -- --coverage
+        # Speichert die Ausgabe zusätzlich in eine Textdatei
+        run: npm test -- --coverage | tee coverage_output.txt
+
+      - name: Format Coverage Table
+        id: coverage_table
+        if: github.event_name == 'pull_request'
+        run: |
+          # Extrahiert die Tabelle (alles zwischen den Linien)
+          TABLE=$(sed -n '/-----------/,/-----------/p' coverage_output.txt)
+          # Speichert die Tabelle in der Umgebungsvariable für den nächsten Schritt
+          echo "REPORT<<EOF" >> $GITHUB_ENV
+          echo "$TABLE" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Post Coverage Comment
+        uses: marocchino/sticky-pull-request-comment@v2
+        if: github.event_name == 'pull_request'
+        with:
+          header: "Code Coverage Report"
+          message: |
+            ### 📊 Code Coverage Report
+            Hier ist die aktuelle Testabdeckung für diesen Pull Request:
+            ```text
+            ${{ env.REPORT }}
+            ```
 
       - name: Build Project
         env:
