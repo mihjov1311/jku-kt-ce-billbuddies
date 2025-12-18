@@ -32,4 +32,6 @@ npm test
 npx jest --watch
 # Validiert neben dem Build auch, ob die App produktionsbereit ist.
 npm run build
+# Test Coverage anzeigen
+npm run test:coverage
 ```
