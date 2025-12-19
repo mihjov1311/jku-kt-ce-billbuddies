@@ -39,8 +39,14 @@ jobs:
         id: coverage_table
         if: github.event_name == 'pull_request'
         run: |
-          # Extrahiert die Tabelle (alles zwischen den Linien)
-          TABLE=$(sed -n '/-----------/,/-----------/p' coverage_output.txt)
+          # Extrahiert die Tabelle: Sucht nach Linien mit mindestens 10 Bindestrichen (flexibler für | Trenner)
+          TABLE=$(sed -n '/-\{10,\}/,/-\{10,\}/p' coverage_output.txt)
+          
+          # Fallback: Falls TABLE leer ist, versuchen wir die Zeilen direkt über Schlüsselwörter zu finden
+          if [ -z "$TABLE" ]; then
+            TABLE=$(grep -E "File|All files|% Stmts" coverage_output.txt)
+          fi
+          
           # Speichert die Tabelle in der Umgebungsvariable für den nächsten Schritt
           echo "REPORT<<EOF" >> $GITHUB_ENV
           echo "$TABLE" >> $GITHUB_ENV
