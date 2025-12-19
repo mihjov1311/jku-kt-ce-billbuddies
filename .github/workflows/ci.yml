@@ -9,7 +9,7 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    # Berechtigungen hinzufügen, damit die Action Kommentare schreiben darf
+    # Berechtigungen hinzufügen, damit der Bot Kommentare schreiben darf
     permissions:
       pull-requests: write
       contents: read
@@ -32,16 +32,22 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        # Speichert die Ausgabe zusätzlich in eine Textdatei
+        # Speichert die Test-Ausgabe in eine Datei
         run: npm test -- --coverage | tee coverage_output.txt
 
       - name: Format Coverage Table
         id: coverage_table
         if: github.event_name == 'pull_request'
         run: |
-          # Extrahiert die Tabelle (alles zwischen den Linien)
-          TABLE=$(sed -n '/-----------/,/-----------/p' coverage_output.txt)
-          # Speichert die Tabelle in der Umgebungsvariable für den nächsten Schritt
+          # Extrahiert alles zwischen dem Tabellenkopf "File" und dem Ende der Statistik "Test Suites"
+          # Der 'grep -v' Befehl entfernt die Zeile "Test Suites", damit nur die Tabelle übrig bleibt.
+          TABLE=$(sed -n '/File *| *% Stmts/,/Test Suites:/p' coverage_output.txt | grep -v "Test Suites:")
+          
+          # Sicherheits-Fallback: Falls die Extraktion fehlschlägt, nehmen wir gezielt die All-Files Zeile
+          if [ -z "$TABLE" ]; then
+            TABLE=$(grep -E "File|All files|AddExpenseDialog" coverage_output.txt)
+          fi
+
           echo "REPORT<<EOF" >> $GITHUB_ENV
           echo "$TABLE" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
