@@ -89,6 +89,8 @@ export default function App() {
     const [ocrData, setOcrData] = useState<OcrResult | null>(null);
     const [isOcrProcessing, setIsOcrProcessing] = useState(false);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    //für Resetbutton
+    const [isResetting, setIsResetting] = useState(false);
 
     // --- 1. AUTHENTIFIZIERUNG & PROFIL LADEN ---
     useEffect(() => {
@@ -235,6 +237,52 @@ export default function App() {
             alert("Fehler beim Löschen: " + err.message);
             setExpenses(oldExpenses);
         }
+    };
+    //Reset-Funktion
+    const resetSettlement = async () => {
+      if (!selectedGroup) return;
+
+    const open = calculateBalances();
+    if (open.length > 0) {
+      const okOpen = confirm(
+        `Laut Abrechnung sind noch ${open.length} Zahlungen offen.\n\nTrotzdem zurücksetzen? (Alle Ausgaben werden gelöscht)`
+      );
+      if (!okOpen) return;
+    }
+
+      if (expenses.length === 0) {
+        alert("Es gibt keine Ausgaben zum Zurücksetzen.");
+        return;
+      }
+
+      const ok = confirm(
+        "Abrechnung wirklich zurücksetzen?\n\nAlle Ausgaben dieser Gruppe werden gelöscht. Dieser Schritt kann nicht rückgängig gemacht werden."
+      );
+      if (!ok) return;
+
+      setIsResetting(true);
+
+      try {
+        const groupIdInt = parseInt(selectedGroup.id);
+
+        const { error } = await supabase
+          .from("ausgaben")
+          .delete()
+          .eq("gruppenid", groupIdInt);
+
+        if (error) throw error;
+
+        // UI leeren + neu laden
+        setExpenses([]);
+        await fetchExpenses();
+
+        alert("Abrechnung wurde zurückgesetzt. Neue Abrechnung kann starten.");
+      } catch (err: any) {
+        console.error(err);
+        alert("Fehler beim Zurücksetzen: " + (err?.message ?? "Unbekannter Fehler"));
+      } finally {
+        setIsResetting(false);
+      }
     };
 
     // Berechnung der Schulden - Mit Unterstützung von Chatgpt
@@ -629,7 +677,33 @@ export default function App() {
                     ) : (
                         <>
                             <ExpenseList expenses={expenses} onDeleteExpense={deleteExpense}/>
-                            <BalanceOverview balances={balances}/>
+                            <div className="space-y-3">
+                              <BalanceOverview balances={balances} />
+
+                              <Button
+                                onClick={resetSettlement}
+                                disabled={isResetting || expenses.length === 0}
+                                variant="outline"
+                                className="
+                                              w-full rounded-full
+                                              bg-emerald-700 text-white
+                                              hover:bg-emerald-800
+                                              disabled:bg-emerald-400
+                                              disabled:text-white/70
+                                              shadow-md
+                                            "
+
+                                title={
+                                  balances.length !== 0
+                                    ? "Reset ist erst möglich, wenn alle Zahlungen ausgeglichen sind."
+                                    : expenses.length === 0
+                                      ? "Keine Ausgaben vorhanden."
+                                      : "Abrechnung abschließen und neue Abrechnung starten."
+                                }
+                              >
+                                {isResetting ? "Setze zurück..." : "Abrechnung zurücksetzen"}
+                              </Button>
+                            </div>
                         </>
                     )}
                 </div>
