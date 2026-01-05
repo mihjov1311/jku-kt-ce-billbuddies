@@ -19,7 +19,6 @@ interface Expense {
   category?: string;
   paidBy: string;
   splitBetween: string[];
-  date: Date;
   foto?: string; // Optionales Foto
 }
 
@@ -151,7 +150,7 @@ export function ExpenseList({ expenses, onDeleteExpense }: ExpenseListProps) {
                           {expense.amount.toFixed(2)} €
                         </div>
                         <div className="text-xs text-slate-500">
-                          {expense.date.toLocaleDateString("de-DE")}
+
                         </div>
                       </div>
 
