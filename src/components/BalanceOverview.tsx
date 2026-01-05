@@ -1,11 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { ArrowRight } from "lucide-react";
+import type { Balance } from "@/lib/calculateBalance";
 
-interface Balance {
-  from: string;
-  to: string;
-  amount: number;
-}
 
 interface BalanceOverviewProps {
   balances: Balance[];

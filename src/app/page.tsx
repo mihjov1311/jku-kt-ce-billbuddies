@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 // FIX: Plus importieren
 import { Button } from "@/components/ui/button";
 import { Receipt, LogOut, ArrowLeft, Camera, Plus } from "lucide-react";
+import { calculateBalances } from "@/lib/calculateBalance";
 
 
 /**
@@ -89,6 +90,8 @@ export default function App() {
     const [ocrData, setOcrData] = useState<OcrResult | null>(null);
     const [isOcrProcessing, setIsOcrProcessing] = useState(false);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    //für Resetbutton
+    const [isResetting, setIsResetting] = useState(false);
 
     // --- 1. AUTHENTIFIZIERUNG & PROFIL LADEN ---
     useEffect(() => {
@@ -175,6 +178,20 @@ export default function App() {
         }
     }, [selectedGroup, fetchExpenses]);
 
+    const getBalances = () =>
+      calculateBalances(
+        expenses.map(e => ({
+          amount: e.amount,
+          paidBy: e.paidBy,
+          splitBetween: e.splitBetween,
+        })),
+        participants.map(p => ({
+          id: p.id,
+          name: p.name,
+        }))
+      );
+
+
     // --- TEILNEHMER ENTFERNEN (UI) ---
     const removeParticipantFromGroup = async (participantIdToRemove: string, participantName: string) => {
         if (!selectedGroup || !user) return;
@@ -236,79 +253,76 @@ export default function App() {
             setExpenses(oldExpenses);
         }
     };
+    //Reset-Funktion
+    const resetSettlement = async () => {
+      if (!selectedGroup) return;
 
-    // Berechnung der Schulden - Mit Unterstützung von Chatgpt
-    const calculateBalances = (): Balance[] => {
-        //für jeden Tn wird ein Saldo erstellt
-        const balances: Record<string, number> = {};
-        participants.forEach((p) => { balances[p.id] = 0; });
+    const resetSettlement = async () => {
+      if (!selectedGroup) return;
 
-        //jede Ausgabe wird durchgegangen
-        expenses.forEach((expense) => {
-            //Wer beteiligt ist an dieser Ausgabe
-            const validSplitIds = expense.splitBetween.filter(id =>
-                participants.some(p => p.id === id)
-            );
+      const open = getBalances();   // statt balances
+      if (open.length > 0) {
+        const okOpen = confirm(
+          `Laut Abrechnung sind noch ${open.length} Zahlungen offen.\n\nTrotzdem zurücksetzen? (Alle Ausgaben werden gelöscht)`
+        );
+        if (!okOpen) return;
+      }
 
-            if(validSplitIds.length === 0) return;
-
-            //der Anteil wird berechnet also pro person
-            const shareAmount = expense.amount / validSplitIds.length;
-
-            //Der was bezahlt hat bekommt es gut geschrieben -> ganzer Betrag
-            if (balances[expense.paidBy] !== undefined) {
-                balances[expense.paidBy] += expense.amount;
-            }
-            //Eigener Anteil wird jedoch wieder abgezogen
-            validSplitIds.forEach((personId) => {
-                if (balances[personId] !== undefined) {
-                    balances[personId] -= shareAmount;
-                }
-            });
-        });
-        //Liste für Schuldner erzeugen
-        const debtors = Object.entries(balances)
-            .filter(([_, amount]) => amount < -0.01)
-            .sort((a, b) => a[1] - b[1]);
-        //Liste mit neg Saldo erzeugen
-        const creditors = Object.entries(balances)
-            .filter(([_, amount]) => amount > 0.01)
-            .sort((a, b) => b[1] - a[1]);
-
-        const result: Balance[] = [];
-        let i = 0;
-        let j = 0;
-        //Vergleich von Schuldner und Gläubiger - entweder Schuldner zahlt alles was er schuldet oder alles, was der Gläubiger bekommen soll je nachdem was kleiner ist
-        //so wird verhindert, dass keiner zu viel zahlt
-        while (i < debtors.length && j < creditors.length) {
-            const [debtorId, debtAmount] = debtors[i];
-            const [creditorId, creditAmount] = creditors[j];
-            //-debtAmount macht es positiv also die Schulden
-            //creditamount sind das Guthaben vom anderen
-            const amount = Math.min(-debtAmount, creditAmount);
-
-            if (amount > 0.01) {
-                const debtorName = participants.find(p => p.id === debtorId)?.name || debtorId;
-                const creditorName = participants.find(p => p.id === creditorId)?.name || creditorId;
-
-                //"A zahlt B zb. 20 Euro"
-                result.push({
-                    from: debtorName,
-                    to: creditorName,
-                    amount: amount,
-                });
-            }
-
-            //Schulden ausgleichen
-            debtors[i] = [debtorId, debtAmount + amount];
-            creditors[j] = [creditorId, creditAmount - amount];
-
-            if (Math.abs(debtors[i][1]) < 0.01) i++;
-            if (Math.abs(creditors[j][1]) < 0.01) j++;
-        }
-
-        return result;
     };
+
+    if (open.length > 0) {
+      const okOpen = confirm(
+        `Laut Abrechnung sind noch ${open.length} Zahlungen offen.\n\nTrotzdem zurücksetzen? (Alle Ausgaben werden gelöscht)`
+      );
+      if (!okOpen) return;
+    }
+
+      if (expenses.length === 0) {
+        alert("Es gibt keine Ausgaben zum Zurücksetzen.");
+        return;
+      }
+
+      const ok = confirm(
+        "Abrechnung wirklich zurücksetzen?\n\nAlle Ausgaben dieser Gruppe werden gelöscht. Dieser Schritt kann nicht rückgängig gemacht werden."
+      );
+      if (!ok) return;
+
+      setIsResetting(true);
+
+      try {
+        const groupIdInt = parseInt(selectedGroup.id);
+
+        const { error } = await supabase
+          .from("ausgaben")
+          .delete()
+          .eq("gruppenid", groupIdInt);
+
+        if (error) throw error;
+
+        // UI leeren + neu laden
+        setExpenses([]);
+        await fetchExpenses();
+
+        alert("Abrechnung wurde zurückgesetzt. Neue Abrechnung kann starten.");
+      } catch (err: any) {
+        console.error(err);
+        alert("Fehler beim Zurücksetzen: " + (err?.message ?? "Unbekannter Fehler"));
+      } finally {
+        setIsResetting(false);
+      }
+    };
+
+    const balances = calculateBalances(
+      expenses.map(e => ({
+        amount: e.amount,
+        paidBy: e.paidBy,
+        splitBetween: e.splitBetween,
+      })),
+      participants.map(p => ({
+        id: p.id,
+        name: p.name,
+      }))
+    );
 
     // --- GRUPPEN HANDLING ---
     const handleSelectGroup = (group: Group) => {
@@ -411,9 +425,10 @@ export default function App() {
 
     const myBalance = myTotalPaid - costPerPerson;
 
-    const balances = calculateBalances();
 
     const currentUserDbId = user.dbId || "";
+
+    const balance = getBalances();
 
     // --- GRUPPE VERLASSEN ---
       const leaveGroup = async () => {
@@ -629,7 +644,33 @@ export default function App() {
                     ) : (
                         <>
                             <ExpenseList expenses={expenses} onDeleteExpense={deleteExpense}/>
-                            <BalanceOverview balances={balances}/>
+                            <div className="space-y-3">
+                              <BalanceOverview balances={balances} />
+
+                              <Button
+                                onClick={resetSettlement}
+                                disabled={isResetting || expenses.length === 0}
+                                variant="outline"
+                                className="
+                                              w-full rounded-full
+                                              bg-emerald-700 text-white
+                                              hover:bg-emerald-800
+                                              disabled:bg-emerald-400
+                                              disabled:text-white/70
+                                              shadow-md
+                                            "
+
+                                title={
+                                  balances.length !== 0
+                                    ? "Reset ist erst möglich, wenn alle Zahlungen ausgeglichen sind."
+                                    : expenses.length === 0
+                                      ? "Keine Ausgaben vorhanden."
+                                      : "Abrechnung abschließen und neue Abrechnung starten."
+                                }
+                              >
+                                {isResetting ? "Setze zurück..." : "Abrechnung zurücksetzen"}
+                              </Button>
+                            </div>
                         </>
                     )}
                 </div>
