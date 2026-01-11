@@ -6,7 +6,6 @@ const createJestConfig = nextJest({
 })
 
 const customJestConfig = {
-    // Wichtig für React-Komponenten
     testEnvironment: 'jest-environment-jsdom',
 
     moduleNameMapper: {
@@ -49,7 +48,6 @@ const customJestConfig = {
     coveragePathIgnorePatterns: [
         "/node_modules/",
         "/components/ui/",
-        // Falls du noch andere Dateien ignorieren willst:
         "\\.setup\\.ts$"
     ],
 }
