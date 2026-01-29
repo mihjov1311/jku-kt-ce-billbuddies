@@ -42,9 +42,7 @@ export function AuthPage({ onLogin }: AuthPageProps) {
     if (error) {
       setError(error.message);
     } else if (data.user) {
-      // =================================================================
-      // HIER IST DIE NEUE, VERBESSERTE LOGIK ZUR NAMENSFINDUNG
-      // =================================================================
+
       const meta = data.user.user_metadata;
       let displayName = "";
 
@@ -100,10 +98,7 @@ export function AuthPage({ onLogin }: AuthPageProps) {
     if (error) {
       setError(error.message);
     } else if (data.user) {
-      // WICHTIG: Standardmäßig sendet Supabase eine Bestätigungs-E-Mail.
-      // Der Benutzer wird erst eingeloggt, NACHDEM er die E-Mail bestätigt hat.
-      // Wenn Sie den Benutzer sofort einloggen möchten, müssen Sie
-      // "Confirm email" in Ihren Supabase Auth-Einstellungen DEAKTIVIEREN.
+
 
       // Wenn "Confirm email" deaktiviert ist, enthält 'data.session' die Sitzung
       // und wir können den Benutzer direkt einloggen.
